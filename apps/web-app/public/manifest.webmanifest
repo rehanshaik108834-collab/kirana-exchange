@@ -1,0 +1,9 @@
+{
+  "name": "Kirana Exchange",
+  "short_name": "KiranaEx",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#0f766e",
+  "description": "Local kirana demand forecasting, peer stock swaps, and group buying."
+}

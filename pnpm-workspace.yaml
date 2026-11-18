@@ -1,3 +1,7 @@
 packages:
   - 'apps/*'
   - 'libs/*'
+
+allowBuilds:
+  argon2: true
+  esbuild: true
