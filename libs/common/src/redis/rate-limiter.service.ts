@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import Redis from 'ioredis';
 
-export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
+export const REDIS_CLIENT = Symbol.for('KIRANA_REDIS_CLIENT');
 
 export interface RateLimitResult {
   allowed: boolean;
