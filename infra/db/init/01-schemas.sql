@@ -257,9 +257,12 @@ CREATE TABLE shortage_requests (
     max_unit_price NUMERIC(10, 2) NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'OPEN'
         CHECK (status IN ('OPEN', 'MATCHED', 'FULFILLED', 'EXPIRED')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    CONSTRAINT uq_shortage_open UNIQUE (shop_id, product_id, status)
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE UNIQUE INDEX uq_shortage_open
+    ON shortage_requests (shop_id, product_id)
+    WHERE status = 'OPEN';
 
 CREATE INDEX idx_shortage_state_prod
     ON shortage_requests (state, product_id)
