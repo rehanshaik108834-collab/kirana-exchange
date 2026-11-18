@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MatchFoundPayload",
+  "type": "object",
+  "properties": {
+    "listingId": { "type": "string", "format": "uuid" },
+    "candidateShopId": { "type": "string", "format": "uuid" },
+    "productId": { "type": "string", "format": "uuid" },
+    "distanceKm": { "type": "number" },
+    "rankScore": { "type": "number" },
+    "offeredPrice": { "type": "number" }
+  },
+  "required": [
+    "listingId",
+    "candidateShopId",
+    "productId",
+    "distanceKm",
+    "rankScore",
+    "offeredPrice"
+  ]
+}

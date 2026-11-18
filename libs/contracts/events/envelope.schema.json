@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KiranaEventEnvelope",
+  "type": "object",
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "type": { "type": "string" },
+    "version": { "type": "integer", "minimum": 1 },
+    "occurredAt": { "type": "string", "format": "date-time" },
+    "correlationId": { "type": "string", "format": "uuid" },
+    "producer": { "type": "string" },
+    "payload": { "type": "object" }
+  },
+  "required": ["id", "type", "version", "occurredAt", "correlationId", "producer", "payload"]
+}
