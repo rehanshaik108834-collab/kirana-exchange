@@ -1,0 +1,29 @@
+{
+  "name": "kirana-exchange",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "private": true,
+  "scripts": {
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
+    "prepare": "husky"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.1",
+    "prettier": "^3.10.1"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,json,md,yml,yaml}": [
+      "prettier --write"
+    ],
+    "services-py/**/*.py": [
+      "ruff check --fix",
+      "ruff format"
+    ]
+  }
+}
