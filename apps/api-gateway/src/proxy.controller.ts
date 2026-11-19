@@ -17,6 +17,8 @@ export class GatewayProxyController {
   private readonly authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://127.0.0.1:3002';
   private readonly shopServiceUrl = process.env.SHOP_SERVICE_URL || 'http://127.0.0.1:3003';
   private readonly catalogServiceUrl = process.env.CATALOG_SERVICE_URL || 'http://127.0.0.1:3004';
+  private readonly inventoryServiceUrl =
+    process.env.INVENTORY_SERVICE_URL || 'http://127.0.0.1:3005';
 
   private async forward(
     targetBaseUrl: string,
@@ -100,5 +102,11 @@ export class GatewayProxyController {
     }
 
     return this.forward(this.catalogServiceUrl, req, res);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @All(['inventory', 'inventory/*path'])
+  async proxyInventory(@Req() req: AuthenticatedRequest, @Res() res: Response) {
+    return this.forward(this.inventoryServiceUrl, req, res);
   }
 }
