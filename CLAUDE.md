@@ -12,14 +12,25 @@ Kirana Exchange is a web-first microservices platform for neighbourhood grocery 
 
 Primary persona: Ramesh (48), 200 sq ft shop, WhatsApp user, prefers Telugu/Hindi, patchy connectivity, strict privacy (sales figures never exposed to neighbours).
 
-Specs: [docs/phase-0-requirements.md](docs/phase-0-requirements.md) (scope, glossary, US-01–US-40, NFRs), [docs/phase-1-architecture.md](docs/phase-1-architecture.md) (service boundaries, event catalogue, swap saga state machine), [docs/phase-2-data-model.md](docs/phase-2-data-model.md), [docs/error-catalogue.md](docs/error-catalogue.md), [docs/rate-limit-policy.md](docs/rate-limit-policy.md).
+### Docs index (read the relevant one at the start of each phase)
+
+| Doc                                                                                                        | Contents                                                                                                                  |
+| ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| [docs/project-plan.md](docs/project-plan.md)                                                               | Vision, users, scope, stack, Redis map, ML design, data/simulator plan, security, testing, risks, decisions               |
+| [docs/phase-0-requirements.md](docs/phase-0-requirements.md)                                               | Glossary, US-01–US-40, quantified NFRs + verification methods, Definition of Done, pilot guide, scope freeze              |
+| [docs/phase-1-architecture.md](docs/phase-1-architecture.md)                                               | Service boundaries, event catalogue, C4, swap & group-buy state machines, protocols, **ADR-001–005**, 4 failure scenarios |
+| [docs/phase-2-data-model.md](docs/phase-2-data-model.md)                                                   | Data ownership, shared persistence patterns, ERD, index matrix (DDL: `infra/db/init/01-schemas.sql`)                      |
+| [docs/execution-roadmap.md](docs/execution-roadmap.md)                                                     | Phases 6–17 tasks and "Done when" criteria, the 6 Go/No-Go gates, cut order                                               |
+| [docs/error-catalogue.md](docs/error-catalogue.md), [docs/rate-limit-policy.md](docs/rate-limit-policy.md) | RFC 9457 problem types; rate-limit layers                                                                                 |
+
+**Go/No-Go gates:** after Phases 2, 5, 8, 9, 11 and 13. **Phase 5 gate:** `OutboxRelay` + RabbitMQ survive a relay killed mid-batch with 0 lost events and 0 duplicate consumer effects.
 
 ## 2. Build Status (18-Phase Roadmap)
 
 - **[DONE] Phases 0–2:**
   - Frozen v1.0 scope; 13 glossary terms; 16 domain events in the catalogue.
   - Per-service DDL in [infra/db/init/01-schemas.sql](infra/db/init/01-schemas.sql), plus the RFC 9457 error catalogue and the rate-limit policy.
-  - ADR-002/003/004 are referenced in docs and code, but **no ADR files exist yet** (`docs/adr/` is empty).
+  - ADR-001–005, the C4 diagrams, both state machines and the 4 failure scenarios are in [docs/phase-1-architecture.md](docs/phase-1-architecture.md). `docs/adr/` stays empty.
   - OpenAPI covers **only** the inventory reserve endpoint ([libs/contracts/openapi/inventory-service.yaml](libs/contracts/openapi/inventory-service.yaml)).
 - **[DONE] Phase 3:**
   - Docker Compose (`postgres:16`, `redis:7`, `rabbitmq:3-management`, `mailhog`, `prometheus`, `grafana`). Prometheus currently scrapes only itself.
@@ -112,6 +123,8 @@ pnpm --filter @kirana/web-app dev                    # http://localhost:5173
    - `01-schemas.sql` runs against the default DB, not the 10 service DBs; services rely on their own migrations.
    - `MatchFound` schema says `candidateShopId`, docs say `candidateShopIds`.
    - The README says React 18 and `pnpm build`.
+   - The swap saga design (phase-1 §4.1) has `COMPENSATING`/`FAILED_NO_STOCK` states and a `TransferCommitted` reply. The `swap_transactions` CHECK has only `FAILED`. Resolve this in Phase 9.
+   - Redis idempotency (phase-1 §5.3) specifies `SET ... "IN_PROGRESS" NX`. Inventory uses GET-then-SET, so concurrent duplicates fall through to the Postgres UNIQUE constraint, which is still safe.
    - `apps/web-app/tsconfig.tsbuildinfo` is committed.
 
 ## 7. Working Style & Collaboration Rules

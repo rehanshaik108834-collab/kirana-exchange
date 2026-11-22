@@ -101,30 +101,76 @@ Use these exact identifiers across database columns, OpenAPI contracts, NestJS/F
 
 ## 4. Quantified Non-Functional Requirements & Global DoD
 
-| Category                  | Metric / Scenario                                  | Target                                                         |
-| :------------------------ | :------------------------------------------------- | :------------------------------------------------------------- |
-| **API Latency**           | General API at 200 concurrent users                | `p95 < 500 ms`                                                 |
-| **Geo Matching**          | Candidate search & ranking across 500 shops        | `p95 < 300 ms`                                                 |
-| **Catalog Search**        | Barcode or trigram lookup across 50,000 products   | `< 100 ms`                                                     |
-| **Forecasting**           | Cached read / Nightly batch (500 shops)            | `p95 < 200 ms` / `<= 15 min`                                   |
-| **Bulk Ingestion**        | CSV 10,000 rows / API loader (100 shops, 180 days) | `<= 10 min`                                                    |
-| **Stock Consistency**     | 1,000 simultaneous claims on 30 units              | Exactly `30` allocated, `0` over-reserved, `0` negative        |
-| **Messaging Durability**  | Outbox relay or service killed mid-saga            | `0` lost events, `0` duplicates, `0` leaked reservations       |
-| **Rate Limiting**         | Global IP / Login / Writes / Swap Offers           | `100/min (burst 30)` / `5/15m` / `60/min` / `20/hr` (HTTP 429) |
-| **PWA & Offline**         | Mobile Lighthouse / 20 offline writes              | `>= 90` Perf & A11y / `20/20` synced once                      |
-| **Security & Containers** | Auth unit coverage / Container privileges / CVEs   | `>= 80%` / `100%` non-root / `0` unmitigated critical CVEs     |
+| Category                  | Metric / Scenario                                  | Target                                                                         | Verification Method                                    |
+| :------------------------ | :------------------------------------------------- | :----------------------------------------------------------------------------- | :----------------------------------------------------- |
+| **API Latency**           | General API at 200 concurrent users                | `p95 < 500 ms`                                                                 | k6 browse-heavy and write-heavy profiles               |
+| **Geo Matching**          | Candidate search & ranking across 500 shops        | `p95 < 300 ms`                                                                 | k6 swap-burst profile against swap-service             |
+| **Catalog Search**        | Barcode or trigram lookup across 50,000 products   | `< 100 ms`                                                                     | Automated integration benchmark on catalog-service     |
+| **Forecasting**           | Cached read / Nightly batch (500 shops)            | `p95 < 200 ms` / `<= 15 min`                                                   | Prometheus latency histogram & batch job timer         |
+| **Bulk Ingestion**        | CSV 10,000 rows / API loader (100 shops, 180 days) | `10,000 rows succeed` / `<= 10 min`                                            | Integration test & simulator loader benchmark          |
+| **Stock Consistency**     | 1,000 simultaneous claims on 30 units              | Exactly `30` allocated, `0` over-reserved, `0` negative                        | Custom high-concurrency contention script              |
+| **Messaging Durability**  | Outbox relay or service killed mid-saga            | `0` lost events, `0` duplicates, `0` leaked reservations                       | Fault-injection & chaos drill test suite               |
+| **Rate Limiting**         | Global IP / Login / Writes / Swap Offers           | `100/min (burst 30)` / `5/15m` / `60/min` / `20/hr` (HTTP 429 + `Retry-After`) | 50-parallel-request unit test + k6 burst test          |
+| **PWA & Offline**         | Mobile Lighthouse / 20 offline writes              | `>= 90` Perf & A11y / `20/20` synced once                                      | Lighthouse mobile audit & Playwright offline test      |
+| **Security & Containers** | Auth unit coverage / Container privileges / CVEs   | `>= 80%` / `100%` non-root / `0` unmitigated critical CVEs                     | Coverage report, Trivy, npm audit, pip-audit, gitleaks |
+| **Reproducibility**       | Clean-room setup / Simulator seed determinism      | `< 30 min` setup / identical SHA checksums per seed                            | Fresh-VM clean-room test & Pytest sanity suite         |
 
-**Global Definition of Done:** (1) Spectral lint passes with zero OpenAPI/DTO drift, (2) DB migration + backend + React UI vertical slice wired, (3) Structured JSON logs with `correlationId`, `application/problem+json` errors, `/health` & `/metrics`, (4) Unit/integration/fault tests pass in CI, (5) Docs/ADRs updated.
+**Global Definition of Done.** A user story or phase is Done only when all of these hold:
+
+1. **Contract conformance:** OpenAPI 3.1 and JSON Schema event definitions pass Spectral linting with zero drift between backend DTOs and frontend TypeScript clients.
+2. **Vertical slice completeness:** the backend endpoint or worker, the DB migration with explicit constraints and indexes, and the mobile-first React UI slice are wired together.
+3. **Observability built in:** structured JSON logs carry `correlationId`, errors return `application/problem+json`, and `/health` and `/metrics` are scraped by Prometheus.
+4. **Automated verification:** unit, integration and phase-specific fault/concurrency tests pass in GitHub Actions CI.
+5. **Documentation updated:** relevant ADRs, event catalogue entries or runbook notes are committed alongside the code.
 
 ---
 
-## 5. Scope Freeze v1.0 & Pre-Approved Cut Order
+## 5. Shopkeeper Pilot Discovery Guide
 
-- **Excluded from v1.0:** Real payments, delivery logistics, live distributor ERPs, digital khata, native apps, Kafka, Kubernetes, MongoDB, GraphQL, deep-learning forecasters.
-- **Cut Order (triggered if any phase slips > 30%):**
+Use this 15–20 minute guide when visiting or shadowing 1–2 local kirana shops. The goal is to **validate assumptions**, not to collect feature requests.
+
+```markdown
+# Pilot Discovery Interview & Observation Log
+
+- **Shop Alias / Area:** [e.g., Shop #1 — Neighbourhood General Store, ~200 sq ft]
+- **Date & Duration:** [YYYY-MM-DD | 15–20 mins]
+- **Interviewee Role:** [Owner / Assistant]
+- **Status:** [Completed / Scheduled for YYYY-MM-DD (Pending)]
+
+## 1. Silent Observation (5 minutes)
+
+- How are sales and stock recorded during a customer rush? (Notebook / mental / billing app)
+- Phone type and connectivity reliability inside the shop
+- Comfort with English vs. Telugu / Hindi labels on mobile screens
+
+## 2. Five Core Discovery Questions (10–15 minutes)
+
+1. **Reordering habit:** "How do you decide what and how much to buy from the wholesaler each week?"
+2. **Unsold & expiring stock:** "Which packaged items usually get stuck or expire before selling? What do you do with them now?"
+3. **Neighbour swap willingness:** "If a kirana 300–500 m away needed an item you have too much of, would you sell it to them? Should your shop name stay hidden until you agree?"
+4. **Discount & handover rules:** "What discount off wholesale/MRP makes a swap worthwhile, and who would carry the boxes over?"
+5. **Notification preference:** "When a nearby offer or group-buy window is closing, how often and where do you want to be alerted?"
+
+## 3. Parameter Calibration (feeds Phases 1, 7 & 9)
+
+- **Acceptable swap radius (km):** [default 0.5 – 2.0 km]
+- **Minimum markdown % for surplus:** [default rule: cost, days of cover, days to expiry]
+- **Preferred handover method:** [buyer runner / seller drop-off + one-time handover code]
+- **Daily notification cap:** [max alerts/day before fatigue]
+```
+
+---
+
+## 6. Scope Freeze v1.0 & Pre-Approved Cut Order
+
+- **Included (P0):** api-gateway, auth, shop, catalog, inventory, forecast (Croston, TSB, LightGBM), swap + Python matching worker (`scipy`), saga-orchestrator, Outbox + RabbitMQ backbone, Redis geo/locks/rate-limiting/caching, offline-capable React PWA.
+- **Included (P1):** groupbuy, notification, reputation & disputes, admin CQRS dashboard, analytics-simulator (with/without-Exchange and cold-start experiments).
+- **Excluded from v1.0:** real payments, delivery logistics, live distributor ERPs, digital khata, native apps, Kafka, Kubernetes, MongoDB, GraphQL, deep-learning forecasters.
+- **Cut order** (triggered if any phase slips by more than 30%):
   1. Telegram bot stretch goal
-  2. Full Telugu/Hindi translations beyond i18n scaffold
+  2. Full Telugu/Hindi translations beyond the i18n scaffold
   3. Reputation scores and admin dispute flow
   4. Group-buy extend-once rule and notification batching
   5. Two-stage forecast variant for ultra-sparse items
-  6. 500-shop simulator preset (retain 10-shop and 100-shop presets)
+  6. 500-shop simulator preset (keep the 10-shop and 100-shop presets)
+- **Change control:** no new functional requirements may be added to v1.0. Record any scope change in `docs/CHANGELOG.md` with its date, reason and impact on the 59-day schedule.
