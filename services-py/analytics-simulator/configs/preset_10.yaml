@@ -1,0 +1,32 @@
+version: '1.0.0'
+seed: 42
+shop_count: 10
+skus_per_shop: 40
+days: 180
+start_date: '2026-01-01'
+
+city_center:
+  name: 'Hyderabad'
+  state: 'Telangana'
+  lat: 17.385044
+  lng: 78.486671
+  radius_km: 8.0
+  cluster_count: 2
+
+demand:
+  weekend_uplift: 1.25
+  festival_uplift: 1.60
+  weather_seasonality_strength: 0.20
+  slow_mover_share: 0.35
+  slow_mover_zero_prob: 0.75
+  annual_trend_std: 0.10
+  reorder_point_days: 4
+  reorder_lead_time_days: 2
+
+behaviour:
+  swap_acceptance_prob: 0.45
+  price_sensitivity: 0.30
+  gst_scheme_weights:
+    REGULAR: 0.35
+    COMPOSITION: 0.45
+    UNREGISTERED: 0.20
