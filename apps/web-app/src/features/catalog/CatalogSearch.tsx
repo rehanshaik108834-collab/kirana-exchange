@@ -1,5 +1,7 @@
 import { lazy, Suspense, useEffect, useId, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Barcode, Camera, Loader2, Search } from 'lucide-react';
+import { formatMoney } from '../../i18n';
 import { isEan, type Product, useCatalogSearch } from './hooks';
 
 // ZXing (~400 kB) loads only when the shopkeeper taps Scan.
@@ -23,6 +25,7 @@ function useDebounced<T>(value: T, delayMs: number): T {
 
 /** Search by partial name/brand, or type/paste a barcode (EAN). Keyboard: arrows + Enter. */
 export function CatalogSearch({ onSelect, autoFocus }: CatalogSearchProps) {
+  const { t } = useTranslation();
   const [input, setInput] = useState('');
   const [active, setActive] = useState(0);
   const [scanning, setScanning] = useState(false);
@@ -42,14 +45,20 @@ export function CatalogSearch({ onSelect, autoFocus }: CatalogSearchProps) {
   return (
     <div className="space-y-2">
       <label htmlFor={`${listId}-input`} className="block text-sm font-medium text-slate-700">
-        Find product (name or barcode)
+        {t('catalog.findLabel')}
       </label>
       <div className="flex gap-2">
         <div className="relative flex-1">
           {isEan(input) ? (
-            <Barcode className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-400" />
+            <Barcode
+              className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-500"
+              aria-hidden="true"
+            />
           ) : (
-            <Search className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-400" />
+            <Search
+              className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-500"
+              aria-hidden="true"
+            />
           )}
           <input
             id={`${listId}-input`}
@@ -76,7 +85,7 @@ export function CatalogSearch({ onSelect, autoFocus }: CatalogSearchProps) {
             aria-expanded={results.length > 0}
             aria-controls={listId}
             aria-activedescendant={results.length > 0 ? `${listId}-${active}` : undefined}
-            placeholder="e.g. parle g, toor dal, 8901..."
+            placeholder={t('catalog.placeholder')}
             className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-10 text-base focus:border-teal-600 focus:outline-none"
           />
           {search.isFetching && (
@@ -86,7 +95,7 @@ export function CatalogSearch({ onSelect, autoFocus }: CatalogSearchProps) {
         <button
           type="button"
           onClick={() => setScanning(true)}
-          aria-label="Scan barcode with camera"
+          aria-label={t('catalog.scanAria')}
           className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
         >
           <Camera className="h-5 w-5" aria-hidden="true" />
@@ -109,15 +118,11 @@ export function CatalogSearch({ onSelect, autoFocus }: CatalogSearchProps) {
       {search.error && <p className="text-sm text-red-700">{search.error.detail}</p>}
 
       {fromCache && query.trim().length >= 2 && (
-        <p className="text-xs text-amber-900">
-          Offline: showing products saved on this phone. Connect to search the full catalogue.
-        </p>
+        <p className="text-xs text-amber-900">{t('catalog.offlineResults')}</p>
       )}
 
       {query.trim().length >= 2 && !search.isFetching && results.length === 0 && !search.error && (
-        <p className="text-sm text-slate-600">
-          No product found. Try fewer words or another spelling.
-        </p>
+        <p className="text-sm text-slate-700">{t('catalog.noResults')}</p>
       )}
 
       {results.length > 0 && (
@@ -137,8 +142,13 @@ export function CatalogSearch({ onSelect, autoFocus }: CatalogSearchProps) {
               className={`cursor-pointer px-3 py-3 ${i === active ? 'bg-teal-50' : ''}`}
             >
               <p className="font-medium text-slate-900">{p.name}</p>
-              <p className="text-xs text-slate-600">
-                {p.brand} · {p.packSize} · MRP ₹{Number(p.mrp).toFixed(2)} · EAN {p.ean}
+              <p className="text-xs text-slate-700">
+                {t('catalog.resultLine', {
+                  brand: p.brand,
+                  pack: p.packSize,
+                  mrp: formatMoney(p.mrp),
+                  ean: p.ean,
+                })}
               </p>
             </li>
           ))}

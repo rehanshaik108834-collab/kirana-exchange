@@ -1,3 +1,5 @@
+import i18n from '../../i18n';
+
 /** Pure helpers for barcode scanning (no camera / ZXing imports, so they are cheap to test and load). */
 
 export type ScanProblem = 'insecure' | 'no-camera' | 'denied' | 'failed';
@@ -30,10 +32,7 @@ export function cameraAvailability(): ScanProblem | null {
   return null;
 }
 
-export const SCAN_PROBLEM_MESSAGES: Record<ScanProblem, string> = {
-  insecure: 'The camera needs a secure (https) connection. Type the barcode number instead.',
-  'no-camera': 'No camera was found on this device. Type the barcode number instead.',
-  denied:
-    'Camera permission was not given. Allow the camera in your browser settings, or type the barcode number.',
-  failed: 'The camera could not start. Type the barcode number instead.',
-};
+/** Plain-language message for a camera problem, in the current language. */
+export function scanProblemMessage(problem: ScanProblem): string {
+  return i18n.t(`scanner.problems.${problem}`);
+}

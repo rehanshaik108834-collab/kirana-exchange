@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { LogOut, PackagePlus, Store, Warehouse } from 'lucide-react';
+import { LanguageSwitcher } from '../../i18n/LanguageSwitcher';
 import { apiClient, ApiProblemError } from '../../lib/api-client';
 import { signOut } from '../../lib/session';
 import type { ShopResponse } from '../auth/hooks';
@@ -25,6 +27,7 @@ const navClass = ({ isActive }: { isActive: boolean }) =>
 export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { t } = useTranslation();
   const shop = useMyShop();
   useSyncTriggers();
   const syncState = useSyncState();
@@ -42,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-3">
           <div className="flex min-w-0 flex-1 items-center gap-2 text-teal-700">
             <Store className="h-5 w-5 shrink-0" />
-            <span className="truncate font-semibold">{shop.data?.name ?? 'Kirana Exchange'}</span>
+            <span className="truncate font-semibold">{shop.data?.name ?? t('common.appName')}</span>
           </div>
           <SyncChip state={syncState} entries={queueEntries} />
           <button
@@ -51,18 +54,19 @@ export function AppShell({ children }: { children: ReactNode }) {
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
             <LogOut className="h-3.5 w-3.5" />
-            Sign out
+            {t('common.signOut')}
           </button>
         </div>
-        <nav className="mx-auto flex max-w-3xl gap-2 px-4 pb-3" aria-label="Main">
+        <nav className="mx-auto flex max-w-3xl gap-2 px-4 pb-3" aria-label={t('nav.main')}>
           <NavLink to="/inventory" end className={navClass}>
             <Warehouse className="h-4 w-4" />
-            Stock
+            {t('nav.stock')}
           </NavLink>
           <NavLink to="/inventory/add" className={navClass}>
             <PackagePlus className="h-4 w-4" />
-            Add stock
+            {t('nav.addStock')}
           </NavLink>
+          <LanguageSwitcher className="ml-auto" />
         </nav>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-6">{children}</main>

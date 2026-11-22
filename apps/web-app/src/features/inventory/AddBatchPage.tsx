@@ -1,6 +1,8 @@
 import { type FormEvent, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Loader2, X } from 'lucide-react';
+import { formatMoney } from '../../i18n';
 import { currentClaims } from '../../lib/session';
 import { useIdempotencyKey } from '../../lib/use-idempotency-key';
 import { CatalogSearch } from '../catalog/CatalogSearch';
@@ -16,6 +18,7 @@ function defaultBatchCode(): string {
 
 /** US-08: add a stock batch (qty, cost price, expiry) for a catalog product. */
 export function AddBatchPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const shopId = currentClaims()?.shopId ?? null;
   const [saving, setSaving] = useState(false);
@@ -58,21 +61,19 @@ export function AddBatchPage() {
       idempotency.rotate();
       navigate('/inventory');
     } catch {
-      setSaveError('Could not save on this phone. Please try again.');
+      setSaveError(t('addBatch.saveFailed'));
     } finally {
       setSaving(false);
     }
   };
 
   if (!shopId) {
-    return (
-      <p className="text-sm text-slate-700">Your shop is not linked yet. Please sign in again.</p>
-    );
+    return <p className="text-sm text-slate-700">{t('inventory.notLinked')}</p>;
   }
 
   return (
     <section className="space-y-4">
-      <h1 className="text-xl font-bold text-slate-900">Add stock</h1>
+      <h1 className="text-xl font-bold text-slate-900">{t('addBatch.title')}</h1>
 
       {!product ? (
         <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -87,23 +88,27 @@ export function AddBatchPage() {
             <div>
               <p className="font-semibold text-slate-900">{product.name}</p>
               <p className="text-xs text-slate-700">
-                {product.brand} · {product.packSize} · MRP ₹{Number(product.mrp).toFixed(2)}
+                {t('addBatch.productLine', {
+                  brand: product.brand,
+                  pack: product.packSize,
+                  mrp: formatMoney(product.mrp),
+                })}
               </p>
             </div>
             <button
               type="button"
               onClick={() => setProduct(null)}
-              aria-label="Change product"
-              className="rounded-md p-1 text-slate-600 hover:bg-white"
+              aria-label={t('addBatch.changeProduct')}
+              className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-slate-700 hover:bg-white"
             >
-              <X className="h-4 w-4" />
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="qty" className="mb-1 block text-sm font-medium text-slate-700">
-                Quantity (units)
+                {t('addBatch.qty')}
               </label>
               <input
                 id="qty"
@@ -119,7 +124,7 @@ export function AddBatchPage() {
             </div>
             <div>
               <label htmlFor="cost" className="mb-1 block text-sm font-medium text-slate-700">
-                Cost price per unit (₹)
+                {t('addBatch.cost')}
               </label>
               <input
                 id="cost"
@@ -135,7 +140,7 @@ export function AddBatchPage() {
             </div>
             <div>
               <label htmlFor="expiry" className="mb-1 block text-sm font-medium text-slate-700">
-                Expiry date
+                {t('addBatch.expiry')}
               </label>
               <input
                 id="expiry"
@@ -148,7 +153,7 @@ export function AddBatchPage() {
             </div>
             <div>
               <label htmlFor="batchCode" className="mb-1 block text-sm font-medium text-slate-700">
-                Batch code
+                {t('addBatch.batchCode')}
               </label>
               <input
                 id="batchCode"
@@ -163,7 +168,10 @@ export function AddBatchPage() {
           </div>
 
           {saveError && (
-            <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+            >
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
               <p>{saveError}</p>
             </div>
@@ -174,8 +182,8 @@ export function AddBatchPage() {
             disabled={saving}
             className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-base font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
           >
-            {saving && <Loader2 className="h-5 w-5 animate-spin" />}
-            Save batch
+            {saving && <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />}
+            {t('addBatch.save')}
           </button>
         </form>
       )}

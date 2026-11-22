@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import L from 'leaflet';
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
 import markerIcon from 'leaflet/dist/images/marker-icon.png';
@@ -41,6 +42,7 @@ export function MapPinPicker({
   initialLng = 78.9629,
   onLocationSelect,
 }: MapPinPickerProps) {
+  const { t } = useTranslation();
   const [selectedPos, setSelectedPos] = useState<[number, number] | null>([initialLat, initialLng]);
 
   const handleSelect = (lat: number, lng: number) => {
@@ -66,8 +68,11 @@ export function MapPinPicker({
       </div>
       <p className="text-xs text-slate-600">
         {selectedPos
-          ? `Pinned location: ${selectedPos[0].toFixed(6)}, ${selectedPos[1].toFixed(6)} (tap map to move pin)`
-          : 'Tap anywhere on the map to pin your kirana shop location.'}
+          ? t('shopSetup.pinned', {
+              lat: selectedPos[0].toFixed(6),
+              lng: selectedPos[1].toFixed(6),
+            })
+          : t('shopSetup.tapToPin')}
       </p>
     </div>
   );

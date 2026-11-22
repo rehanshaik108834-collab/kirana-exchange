@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, CloudOff, Loader2, UploadCloud } from 'lucide-react';
+import i18n from '../../i18n';
 import type { StoredEntry } from './queue';
 import type { SyncState } from './sync-engine';
 
@@ -10,23 +11,24 @@ export interface SyncSummary {
 
 /** Single plain-language sync status (US-13), most urgent first. */
 export function summariseSync(state: SyncState, entries: StoredEntry[]): SyncSummary {
+  const t = i18n.t.bind(i18n);
   const conflicts = entries.filter((e) => e.status === 'conflict').length;
   const waiting = entries.length - conflicts;
   if (conflicts > 0) {
-    return {
-      tone: 'attention',
-      label: conflicts === 1 ? '1 needs attention' : `${conflicts} need attention`,
-    };
+    return { tone: 'attention', label: t('sync.attention', { count: conflicts }) };
   }
   if (state === 'offline') {
-    return { tone: 'offline', label: waiting > 0 ? `Offline · ${waiting} waiting` : 'Offline' };
+    return {
+      tone: 'offline',
+      label: waiting > 0 ? t('sync.offlineWaiting', { count: waiting }) : t('sync.offline'),
+    };
   }
   if (state === 'signed-out' && waiting > 0) {
-    return { tone: 'attention', label: `${waiting} waiting · sign in again` };
+    return { tone: 'attention', label: t('sync.signInAgain', { count: waiting }) };
   }
-  if (state === 'syncing' && waiting > 0) return { tone: 'busy', label: 'Syncing…' };
-  if (waiting > 0) return { tone: 'waiting', label: `${waiting} waiting` };
-  return { tone: 'ok', label: 'All saved' };
+  if (state === 'syncing' && waiting > 0) return { tone: 'busy', label: t('sync.syncing') };
+  if (waiting > 0) return { tone: 'waiting', label: t('sync.waiting', { count: waiting }) };
+  return { tone: 'ok', label: t('sync.allSaved') };
 }
 
 const STYLES: Record<SyncSummary['tone'], string> = {
@@ -63,7 +65,7 @@ export function SyncChip({ state, entries }: { state: SyncState; entries: Stored
     </span>
   );
   return summary.tone === 'attention' ? (
-    <Link to="/sync-issues" aria-label={`${summary.label}: open the fix screen`}>
+    <Link to="/sync-issues" aria-label={i18n.t('sync.openFix', { label: summary.label })}>
       {chip}
     </Link>
   ) : (

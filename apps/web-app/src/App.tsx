@@ -1,6 +1,7 @@
 import { lazy, type ReactNode, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { Loader2 } from 'lucide-react';
 import { UpdatePrompt } from './features/shell/UpdatePrompt';
 import { queryClient } from './lib/query-client';
@@ -28,10 +29,11 @@ const AppShell = lazy(() =>
 );
 
 function PageLoading() {
+  const { t } = useTranslation();
   return (
     <div className="flex min-h-screen items-center justify-center text-slate-600" role="status">
       <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
-      <span className="sr-only">Loading…</span>
+      <span className="sr-only">{t('common.loading')}</span>
     </div>
   );
 }

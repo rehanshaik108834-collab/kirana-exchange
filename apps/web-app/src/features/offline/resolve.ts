@@ -1,3 +1,4 @@
+import i18n from '../../i18n';
 import { apiClient } from '../../lib/api-client';
 import type { InventoryBatch } from '../inventory/hooks';
 import { listEntries, removeEntry, type StoredEntry, updateEntry } from './queue';
@@ -25,40 +26,31 @@ export function conflictKind(entry: StoredEntry): ConflictKind {
 
 /** Plain-language explanation for a non-technical shopkeeper (US-14): no codes, no jargon. */
 export function describeConflict(entry: StoredEntry): ConflictView {
-  const name = entry.display?.productName ?? 'this item';
+  const t = i18n.t.bind(i18n);
+  const name = entry.display?.productName ?? t('conflict.thisItem');
+  const detail = entry.lastError?.detail ?? t('conflict.unknown');
   const kind = conflictKind(entry);
-  if (entry.kind === 'sale' && kind === 'version-conflict') {
-    return {
-      kind,
-      title: `Sale of ${entry.payload.qty} × ${name}`,
-      message:
-        'The stock of this item changed on another phone while yours was offline, so this sale is not counted yet.',
-    };
-  }
-  if (entry.kind === 'sale' && kind === 'insufficient-stock') {
-    const available = Number(entry.lastError?.body?.available ?? 0);
-    return {
-      kind,
-      title: `Sale of ${entry.payload.qty} × ${name}`,
-      message:
-        available > 0
-          ? `Only ${available} can be sold now (the rest was sold or reserved), so this sale is not counted yet.`
-          : 'There is no stock left to sell for this batch, so this sale is not counted.',
-      available,
-    };
-  }
   if (entry.kind === 'batch') {
     return {
       kind,
-      title: `New batch ${entry.payload.batchCode} of ${name}`,
-      message: `This batch could not be saved: ${entry.lastError?.detail ?? 'unknown problem'}. Discard it and add it again with the correct details.`,
+      title: t('conflict.batchTitle', { code: entry.payload.batchCode, name }),
+      message: t('conflict.batchMsg', { detail }),
     };
   }
-  return {
-    kind,
-    title: `Sale of ${entry.payload.qty} × ${name}`,
-    message: `This sale could not be saved: ${entry.lastError?.detail ?? 'unknown problem'}.`,
-  };
+  const title = t('conflict.saleTitle', { qty: entry.payload.qty, name });
+  if (kind === 'version-conflict') {
+    return { kind, title, message: t('conflict.versionMsg') };
+  }
+  if (kind === 'insufficient-stock') {
+    const available = Number(entry.lastError?.body?.available ?? 0);
+    return {
+      kind,
+      title,
+      message: available > 0 ? t('conflict.onlyN', { count: available }) : t('conflict.noneLeft'),
+      available,
+    };
+  }
+  return { kind, title, message: t('conflict.saleOther', { detail }) };
 }
 
 /**

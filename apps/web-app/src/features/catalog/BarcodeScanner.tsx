@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { CameraOff, X } from 'lucide-react';
 import {
   cameraAvailability,
   classifyScanError,
-  SCAN_PROBLEM_MESSAGES,
   type ScanProblem,
+  scanProblemMessage,
 } from './scan-utils';
 
 interface BarcodeScannerProps {
@@ -17,6 +18,7 @@ interface BarcodeScannerProps {
  * The camera is always released on detection, on Close, and on unmount (route change).
  */
 export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
+  const { t } = useTranslation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [problem, setProblem] = useState<ScanProblem | null>(() => cameraAvailability());
   const [starting, setStarting] = useState(problem === null);
@@ -53,31 +55,31 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Scan a barcode"
+      aria-label={t('scanner.dialog')}
       className="fixed inset-0 z-[1200] flex flex-col bg-black/90 p-4 text-white"
     >
       <div className="flex items-center justify-between">
-        <p className="font-semibold">Point the camera at the barcode</p>
+        <p className="font-semibold">{t('scanner.title')}</p>
         <button
           type="button"
           onClick={onClose}
           className="inline-flex min-h-11 items-center gap-1 rounded-lg bg-white/10 px-3 font-medium"
         >
           <X className="h-5 w-5" aria-hidden="true" />
-          Close
+          {t('scanner.close')}
         </button>
       </div>
 
       {problem ? (
         <div className="m-auto max-w-sm space-y-3 text-center">
           <CameraOff className="mx-auto h-10 w-10" aria-hidden="true" />
-          <p role="alert">{SCAN_PROBLEM_MESSAGES[problem]}</p>
+          <p role="alert">{scanProblemMessage(problem)}</p>
           <button
             type="button"
             onClick={onClose}
             className="min-h-12 w-full rounded-lg bg-teal-500 px-4 font-semibold text-slate-900"
           >
-            Type the barcode instead
+            {t('scanner.typeInstead')}
           </button>
         </div>
       ) : (
@@ -87,7 +89,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
             className="aspect-[3/4] w-full object-cover"
             muted
             playsInline
-            aria-label="Camera preview"
+            aria-label={t('scanner.preview')}
           />
           <div
             className="pointer-events-none absolute inset-x-8 top-1/2 h-24 -translate-y-1/2 rounded-lg border-2 border-teal-400"
@@ -95,7 +97,7 @@ export function BarcodeScanner({ onDetected, onClose }: BarcodeScannerProps) {
           />
           {starting && (
             <p className="absolute inset-x-0 bottom-3 text-center text-sm" role="status">
-              Starting camera…
+              {t('scanner.starting')}
             </p>
           )}
         </div>

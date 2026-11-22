@@ -1,35 +1,37 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, CloudOff, Loader2 } from 'lucide-react';
+import { formatDateTime } from '../../i18n';
 import type { StoredEntry } from './queue';
 import { countOnCurrentStock, countReducedQty, describeConflict, discardEntry } from './resolve';
 import { useQueueEntries } from './runtime';
 
 /** US-14: plain-language fixes for entries the server could not accept. */
 export function SyncIssuesPage() {
+  const { t } = useTranslation();
   const entries = useQueueEntries();
   const conflicts = entries.filter((e) => e.status === 'conflict');
   const blocked = entries.filter((e) => e.status === 'blocked').length;
 
   return (
     <section className="space-y-4">
-      <h1 className="text-xl font-bold text-slate-900">Entries that need attention</h1>
+      <h1 className="text-xl font-bold text-slate-900">{t('issues.title')}</h1>
 
       {conflicts.length === 0 ? (
         <div className="rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm text-teal-900">
           <p className="flex items-center gap-2 font-semibold">
-            <CheckCircle2 className="h-5 w-5" aria-hidden="true" /> Nothing needs your attention.
+            <CheckCircle2 className="h-5 w-5" aria-hidden="true" /> {t('issues.none')}
           </p>
           <Link to="/inventory" className="mt-2 inline-block font-medium underline">
-            Back to my stock
+            {t('issues.back')}
           </Link>
         </div>
       ) : (
         <>
           <p className="text-sm text-slate-700">
-            These entries were saved on this phone but could not be added to your shop yet.
-            {blocked > 0 &&
-              ` ${blocked} more ${blocked === 1 ? 'sale is' : 'sales are'} waiting behind them.`}
+            {t('issues.intro')}
+            {blocked > 0 && ` ${t('issues.waitingBehind', { count: blocked })}`}
           </p>
           <ul className="space-y-3">
             {conflicts.map((entry) => (
@@ -43,6 +45,7 @@ export function SyncIssuesPage() {
 }
 
 function IssueCard({ entry }: { entry: StoredEntry }) {
+  const { t } = useTranslation();
   const view = describeConflict(entry);
   const [busy, setBusy] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -50,7 +53,7 @@ function IssueCard({ entry }: { entry: StoredEntry }) {
 
   const run = async (action: () => Promise<void>) => {
     if (!navigator.onLine) {
-      setError('Connect to the internet to fix this. The entry stays saved on this phone.');
+      setError(t('issues.needOnline'));
       return;
     }
     setBusy(true);
@@ -58,21 +61,13 @@ function IssueCard({ entry }: { entry: StoredEntry }) {
     try {
       await action();
     } catch {
-      setError('Could not reach the shop server. Please try again when you are online.');
+      setError(t('issues.serverDown'));
     } finally {
       setBusy(false);
     }
   };
 
-  const soldWhen =
-    entry.kind === 'sale'
-      ? new Date(entry.payload.soldAt).toLocaleString([], {
-          day: 'numeric',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
-        })
-      : null;
+  const soldWhen = entry.kind === 'sale' ? formatDateTime(entry.payload.soldAt) : null;
 
   return (
     <li className="space-y-3 rounded-xl border border-red-200 bg-white p-4 shadow-sm">
@@ -80,7 +75,9 @@ function IssueCard({ entry }: { entry: StoredEntry }) {
         <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-red-700" aria-hidden="true" />
         <div>
           <p className="font-semibold text-slate-900">{view.title}</p>
-          {soldWhen && <p className="text-xs text-slate-600">Sold on {soldWhen}</p>}
+          {soldWhen && (
+            <p className="text-xs text-slate-700">{t('issues.soldOn', { when: soldWhen })}</p>
+          )}
           <p className="mt-1 text-sm text-slate-800">{view.message}</p>
         </div>
       </div>
@@ -100,7 +97,7 @@ function IssueCard({ entry }: { entry: StoredEntry }) {
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
           >
             {busy && <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />}
-            Count this sale on the current stock
+            {t('issues.countCurrent')}
           </button>
         )}
         {view.kind === 'insufficient-stock' && (view.available ?? 0) > 0 && (
@@ -111,7 +108,7 @@ function IssueCard({ entry }: { entry: StoredEntry }) {
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
           >
             {busy && <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" />}
-            Count {view.available} instead
+            {t('issues.countReduced', { count: view.available })}
           </button>
         )}
         {!confirmDiscard ? (
@@ -121,11 +118,11 @@ function IssueCard({ entry }: { entry: StoredEntry }) {
             onClick={() => setConfirmDiscard(true)}
             className="min-h-12 rounded-lg border border-slate-300 px-4 font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
           >
-            Discard this entry
+            {t('issues.discard')}
           </button>
         ) : (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-900">
-            <p>Discard it? It will not be added to your stock records.</p>
+            <p>{t('issues.discardConfirm')}</p>
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
@@ -133,14 +130,14 @@ function IssueCard({ entry }: { entry: StoredEntry }) {
                 onClick={() => void run(() => discardEntry(entry))}
                 className="min-h-11 flex-1 rounded-lg bg-red-700 px-3 font-semibold text-white disabled:opacity-50"
               >
-                Yes, discard
+                {t('issues.yesDiscard')}
               </button>
               <button
                 type="button"
                 onClick={() => setConfirmDiscard(false)}
                 className="min-h-11 flex-1 rounded-lg border border-slate-300 bg-white px-3 font-medium text-slate-800"
               >
-                Keep it
+                {t('issues.keep')}
               </button>
             </div>
           </div>

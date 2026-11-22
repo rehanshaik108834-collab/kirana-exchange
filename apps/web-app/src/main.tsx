@@ -1,5 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import './i18n';
 import { App } from './App';
 import { queryClient } from './lib/query-client';
 import { restorePersistedQueries, startPersistingQueries } from './lib/query-persistence';

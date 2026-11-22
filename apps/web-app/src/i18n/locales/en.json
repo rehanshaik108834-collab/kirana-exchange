@@ -1,0 +1,172 @@
+{
+  "common": {
+    "appName": "Kirana Exchange",
+    "loading": "Loading…",
+    "signOut": "Sign out",
+    "ref": "Ref: {{id}}",
+    "language": "Language"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "registerTab": "Register Shop Owner",
+    "createAccount": "Create Account",
+    "email": "Email",
+    "phone": "Phone (optional if email provided)",
+    "password": "Password",
+    "passwordPlaceholder": "Minimum 8 characters",
+    "pleaseWait": "Please wait...",
+    "lockedTitle": "Account temporarily locked",
+    "lockedRetry": "Too many attempts. Try again in {{seconds}}s."
+  },
+  "shopSetup": {
+    "title": "Shop Profile & Location Pin",
+    "subtitle": "Pin your kirana store on the map to match with nearby same-state shops.",
+    "saved": "Shop saved! Setting up your stock screen…",
+    "savedSlow": "Shop saved. Linking is taking longer than usual — please sign in again in a minute.",
+    "shopId": "Shop ID",
+    "shopName": "Shop Name",
+    "shopNamePlaceholder": "Ramesh Kirana & General Store",
+    "state": "State (Same-state swap boundary)",
+    "address": "Street Address",
+    "addressPlaceholder": "12-4-88 Banjara Hills, Hyderabad",
+    "gstScheme": "GST Scheme",
+    "gst": {
+      "COMPOSITION": "Composition",
+      "REGULAR": "Regular",
+      "UNREGISTERED": "Unregistered"
+    },
+    "radius": "Swap Radius: {{km}} km",
+    "dropPin": "Drop Shop Pin on Map",
+    "pinned": "Pinned location: {{lat}}, {{lng}} (tap map to move pin)",
+    "tapToPin": "Tap anywhere on the map to pin your kirana shop location.",
+    "saving": "Saving shop...",
+    "save": "Save Shop Profile",
+    "states": {
+      "Telangana": "Telangana",
+      "Andhra Pradesh": "Andhra Pradesh",
+      "Karnataka": "Karnataka",
+      "Maharashtra": "Maharashtra",
+      "Tamil Nadu": "Tamil Nadu",
+      "Delhi": "Delhi",
+      "Gujarat": "Gujarat",
+      "Uttar Pradesh": "Uttar Pradesh",
+      "West Bengal": "West Bengal"
+    }
+  },
+  "nav": {
+    "main": "Main",
+    "stock": "Stock",
+    "addStock": "Add stock"
+  },
+  "inventory": {
+    "title": "My stock",
+    "addStock": "Add stock",
+    "soldOnline": "Sold 1 × {{name}}. {{left}} left to sell.",
+    "soldOffline": "Sold 1 × {{name}}. Saved on this phone — it will sync when you are online.",
+    "saveFailed": "Could not save the sale on this phone. Please try again.",
+    "offlineSnapshot": "Offline — showing stock saved at {{time}}.",
+    "loading": "Loading stock…",
+    "empty": "No stock yet. Tap <strong>Add stock</strong> to enter your first batch.",
+    "notLinked": "Your shop is not linked yet. Please sign in again.",
+    "loadingProduct": "Loading product…",
+    "batchLine": "Batch {{code}} · Cost {{cost}}",
+    "needsAttention": "An entry for this batch needs attention — fix it",
+    "newBatchWaiting": "New batch saved on this phone — waiting to sync",
+    "unsentSales_one": "{{count}} sale not synced yet",
+    "unsentSales_other": "{{count}} sales not synced yet",
+    "canSell": "Can sell",
+    "reserved": "Reserved",
+    "daysOfCover": "Days of cover",
+    "sell1": "Sell 1",
+    "sellAria": "Sell 1 {{name}}",
+    "soldOut": "Sold out",
+    "expired": "Expired",
+    "waitingToSync": "Waiting to sync"
+  },
+  "expiry": {
+    "expired": "Expired",
+    "today": "Expires today",
+    "inDays": "Expires in {{count}}d",
+    "left": "{{count}}d left"
+  },
+  "addBatch": {
+    "title": "Add stock",
+    "changeProduct": "Change product",
+    "productLine": "{{brand}} · {{pack}} · MRP {{mrp}}",
+    "qty": "Quantity (units)",
+    "cost": "Cost price per unit (₹)",
+    "expiry": "Expiry date",
+    "batchCode": "Batch code",
+    "save": "Save batch",
+    "saveFailed": "Could not save on this phone. Please try again.",
+    "decrease": "Decrease quantity",
+    "increase": "Increase quantity"
+  },
+  "catalog": {
+    "findLabel": "Find product (name or barcode)",
+    "placeholder": "e.g. parle g, toor dal, 8901...",
+    "noResults": "No product found. Try fewer words or another spelling.",
+    "offlineResults": "Offline: showing products saved on this phone. Connect to search the full catalogue.",
+    "scanAria": "Scan barcode with camera",
+    "resultLine": "{{brand}} · {{pack}} · MRP {{mrp}} · EAN {{ean}}"
+  },
+  "scanner": {
+    "title": "Point the camera at the barcode",
+    "dialog": "Scan a barcode",
+    "close": "Close",
+    "starting": "Starting camera…",
+    "typeInstead": "Type the barcode instead",
+    "preview": "Camera preview",
+    "problems": {
+      "insecure": "The camera needs a secure (https) connection. Type the barcode number instead.",
+      "no-camera": "No camera was found on this device. Type the barcode number instead.",
+      "denied": "Camera permission was not given. Allow the camera in your browser settings, or type the barcode number.",
+      "failed": "The camera could not start. Type the barcode number instead."
+    }
+  },
+  "sync": {
+    "allSaved": "All saved",
+    "waiting_one": "{{count}} waiting",
+    "waiting_other": "{{count}} waiting",
+    "offline": "Offline",
+    "offlineWaiting": "Offline · {{count}} waiting",
+    "syncing": "Syncing…",
+    "attention_one": "{{count}} needs attention",
+    "attention_other": "{{count}} need attention",
+    "signInAgain": "{{count}} waiting · sign in again",
+    "openFix": "{{label}}: open the fix screen"
+  },
+  "issues": {
+    "title": "Entries that need attention",
+    "none": "Nothing needs your attention.",
+    "back": "Back to my stock",
+    "intro": "These entries were saved on this phone but could not be added to your shop yet.",
+    "waitingBehind_one": "{{count}} more sale is waiting behind them.",
+    "waitingBehind_other": "{{count}} more sales are waiting behind them.",
+    "soldOn": "Sold on {{when}}",
+    "countCurrent": "Count this sale on the current stock",
+    "countReduced": "Count {{count}} instead",
+    "discard": "Discard this entry",
+    "discardConfirm": "Discard it? It will not be added to your stock records.",
+    "yesDiscard": "Yes, discard",
+    "keep": "Keep it",
+    "needOnline": "Connect to the internet to fix this. The entry stays saved on this phone.",
+    "serverDown": "Could not reach the shop server. Please try again when you are online."
+  },
+  "conflict": {
+    "saleTitle": "Sale of {{qty}} × {{name}}",
+    "batchTitle": "New batch {{code}} of {{name}}",
+    "thisItem": "this item",
+    "unknown": "unknown problem",
+    "versionMsg": "The stock of this item changed on another phone while yours was offline, so this sale is not counted yet.",
+    "onlyN": "Only {{count}} can be sold now (the rest was sold or reserved), so this sale is not counted yet.",
+    "noneLeft": "There is no stock left to sell for this batch, so this sale is not counted.",
+    "batchMsg": "This batch could not be saved: {{detail}}. Discard it and add it again with the correct details.",
+    "saleOther": "This sale could not be saved: {{detail}}."
+  },
+  "update": {
+    "ready": "A new version of the app is ready.",
+    "later": "Later",
+    "reload": "Reload"
+  }
+}

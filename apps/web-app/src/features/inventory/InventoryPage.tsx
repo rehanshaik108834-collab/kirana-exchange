@@ -1,6 +1,8 @@
 import { useMemo, useState } from 'react';
+import { Trans, useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, CloudUpload, Loader2, PackagePlus } from 'lucide-react';
+import { formatMoney, formatTime } from '../../i18n';
 import { currentClaims } from '../../lib/session';
 import { useProductsByIds } from '../catalog/hooks';
 import { projectBatches, type ProjectedBatch } from '../offline/project';
@@ -15,9 +17,15 @@ const BADGE: Record<ExpiryLevel, string> = {
   ok: 'bg-slate-100 text-slate-700',
 };
 
-type Feedback = { tone: 'ok' | 'error'; text: string } | null;
+/** Stored as a key + values so it re-renders in the new language after a switch. */
+type Feedback = {
+  tone: 'ok' | 'error';
+  key: string;
+  values?: Record<string, string | number>;
+} | null;
 
 export function InventoryPage() {
+  const { t } = useTranslation();
   const shopId = currentClaims()?.shopId ?? null;
   const batches = useBatches(shopId);
   const entries = useQueueEntries();
@@ -35,7 +43,7 @@ export function InventoryPage() {
     (b) => b.qty > 0 || b.reservedQty > 0 || b.pendingSync || b.needsAttention,
   );
   const nameOf = (b: ProjectedBatch) =>
-    b.productName ?? products.data?.get(b.productId)?.name ?? 'Loading product…';
+    b.productName ?? products.data?.get(b.productId)?.name ?? t('inventory.loadingProduct');
 
   const sell = async (batch: ProjectedBatch) => {
     const name = nameOf(batch);
@@ -47,14 +55,13 @@ export function InventoryPage() {
       const left = batch.qty - batch.reservedQty - 1;
       setFeedback({
         tone: 'ok',
-        text: navigator.onLine
-          ? `Sold 1 × ${name}. ${left} left to sell.`
-          : `Sold 1 × ${name}. Saved on this phone — it will sync when you are online.`,
+        key: navigator.onLine ? 'inventory.soldOnline' : 'inventory.soldOffline',
+        values: { name, left },
       });
     } catch {
       setFeedback({
         tone: 'error',
-        text: 'Could not save the sale on this phone. Please try again.',
+        key: 'inventory.saveFailed',
       });
     } finally {
       setBusyBatchId(null);
@@ -62,21 +69,19 @@ export function InventoryPage() {
   };
 
   if (!shopId) {
-    return (
-      <p className="text-sm text-slate-700">Your shop is not linked yet. Please sign in again.</p>
-    );
+    return <p className="text-sm text-slate-700">{t('inventory.notLinked')}</p>;
   }
 
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold text-slate-900">My stock</h1>
+        <h1 className="text-xl font-bold text-slate-900">{t('inventory.title')}</h1>
         <Link
           to="/inventory/add"
           className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-teal-700 px-3 text-sm font-semibold text-white hover:bg-teal-800"
         >
           <PackagePlus className="h-4 w-4" aria-hidden="true" />
-          Add stock
+          {t('inventory.addStock')}
         </Link>
       </div>
 
@@ -94,24 +99,19 @@ export function InventoryPage() {
           ) : (
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           )}
-          <p className="flex-1">{feedback.text}</p>
+          <p className="flex-1">{t(feedback.key, feedback.values ?? {})}</p>
         </div>
       )}
 
       {batches.data && (batches.fetchStatus === 'paused' || batches.isRefetchError) && (
         <p role="status" className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
-          Offline — showing stock saved at{' '}
-          {new Date(batches.dataUpdatedAt).toLocaleTimeString([], {
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-          .
+          {t('inventory.offlineSnapshot', { time: formatTime(batches.dataUpdatedAt) })}
         </p>
       )}
 
       {batches.isLoading && (
         <p className="flex items-center gap-2 text-sm text-slate-600">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> Loading stock…
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> {t('inventory.loading')}
         </p>
       )}
       {/* With saved stock on screen, the amber offline note explains the state; no raw error. */}
@@ -121,7 +121,7 @@ export function InventoryPage() {
 
       {!batches.isLoading && rows.length === 0 && !(batches.error && !batches.data) && (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600">
-          No stock yet. Tap <strong>Add stock</strong> to enter your first batch.
+          <Trans i18nKey="inventory.empty" components={{ strong: <strong /> }} />
         </div>
       )}
 
@@ -151,16 +151,17 @@ function BatchCard({
   busy: boolean;
   onSell: () => void;
 }) {
+  const { t } = useTranslation();
   const available = batch.qty - batch.reservedQty;
   const expiry = expiryStatus(batch.expiryDate);
   const canSell = !batch.pendingSync && available > 0 && expiry.level !== 'expired';
   const buttonLabel = batch.pendingSync
-    ? 'Waiting to sync'
+    ? t('inventory.waitingToSync')
     : available <= 0
-      ? 'Sold out'
+      ? t('inventory.soldOut')
       : expiry.level === 'expired'
-        ? 'Expired'
-        : 'Sell 1';
+        ? t('inventory.expired')
+        : t('inventory.sell1');
 
   return (
     <li className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -168,7 +169,10 @@ function BatchCard({
         <div className="min-w-0">
           <p className="truncate font-semibold text-slate-900">{productName}</p>
           <p className="text-xs text-slate-600">
-            Batch {batch.batchCode} · Cost ₹{Number(batch.costPrice).toFixed(2)}
+            {t('inventory.batchLine', {
+              code: batch.batchCode,
+              cost: formatMoney(batch.costPrice),
+            })}
           </p>
         </div>
         <span
@@ -191,27 +195,27 @@ function BatchCard({
           )}
           {batch.needsAttention ? (
             <Link to="/sync-issues" className="underline">
-              An entry for this batch needs attention — fix it
+              {t('inventory.needsAttention')}
             </Link>
           ) : batch.pendingSync ? (
-            'New batch saved on this phone — waiting to sync'
+            t('inventory.newBatchWaiting')
           ) : (
-            `${batch.unsentSales} sale${batch.unsentSales === 1 ? '' : 's'} not synced yet`
+            t('inventory.unsentSales', { count: batch.unsentSales })
           )}
         </p>
       )}
 
       <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
         <div className="rounded-lg bg-slate-50 p-2">
-          <dt className="text-xs text-slate-600">Can sell</dt>
+          <dt className="text-xs text-slate-700">{t('inventory.canSell')}</dt>
           <dd className="text-lg font-bold text-slate-900">{available}</dd>
         </div>
         <div className="rounded-lg bg-slate-50 p-2">
-          <dt className="text-xs text-slate-600">Reserved</dt>
+          <dt className="text-xs text-slate-700">{t('inventory.reserved')}</dt>
           <dd className="text-lg font-bold text-slate-900">{batch.reservedQty}</dd>
         </div>
         <div className="rounded-lg bg-slate-50 p-2">
-          <dt className="text-xs text-slate-600">Days of cover</dt>
+          <dt className="text-xs text-slate-700">{t('inventory.daysOfCover')}</dt>
           <dd className="text-lg font-bold text-slate-900">
             {batch.daysOfCover === null ? '—' : Number(batch.daysOfCover).toFixed(0)}
           </dd>
@@ -222,7 +226,11 @@ function BatchCard({
         type="button"
         onClick={onSell}
         disabled={!canSell || busy}
-        aria-label={canSell ? `Sell 1 ${productName}` : `${buttonLabel}: ${productName}`}
+        aria-label={
+          canSell
+            ? t('inventory.sellAria', { name: productName })
+            : `${buttonLabel}: ${productName}`
+        }
         className="mt-3 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-base font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
       >
         {busy ? <Loader2 className="h-5 w-5 animate-spin" aria-hidden="true" /> : null}
