@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Lock, Store } from 'lucide-react';
+import { homePath } from '../../lib/session';
 import { useLogin, useRegister } from './hooks';
 
 type Lang = 'en' | 'te' | 'hi';
@@ -69,11 +70,11 @@ export function AuthPage() {
 
     if (mode === 'login') {
       loginMutation.mutate(payload, {
-        onSuccess: () => navigate('/shop-setup'),
+        onSuccess: () => navigate(homePath(), { replace: true }),
       });
     } else {
       registerMutation.mutate(payload, {
-        onSuccess: () => navigate('/shop-setup'),
+        onSuccess: () => navigate(homePath(), { replace: true }),
       });
     }
   };

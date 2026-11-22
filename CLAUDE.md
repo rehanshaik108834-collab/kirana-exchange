@@ -23,7 +23,7 @@ Primary persona: Ramesh (48), 200 sq ft shop, WhatsApp user, prefers Telugu/Hind
 | [docs/execution-roadmap.md](docs/execution-roadmap.md)                                                     | Phases 6–17 tasks and "Done when" criteria, the 6 Go/No-Go gates, cut order                                               |
 | [docs/error-catalogue.md](docs/error-catalogue.md), [docs/rate-limit-policy.md](docs/rate-limit-policy.md) | RFC 9457 problem types; rate-limit layers                                                                                 |
 
-**Go/No-Go gates:** after Phases 2, 5, 8, 9, 11 and 13. **Phase 5 gate:** `OutboxRelay` + RabbitMQ survive a relay killed mid-batch with 0 lost events and 0 duplicate consumer effects.
+**Go/No-Go gates:** after Phases 2, 5, 8, 9, 11 and 13. **Phase 5 gate: PASSED (GO)**: `OutboxRelay` + RabbitMQ survive a relay killed mid-batch with 0 lost events and 0 duplicate consumer effects ([report](docs/phase-5-go-no-go.md)).
 
 ## 2. Build Status (18-Phase Roadmap)
 
@@ -42,14 +42,14 @@ Primary persona: Ramesh (48), 200 sq ft shop, WhatsApp user, prefers Telugu/Hind
   - `apps/auth-service` (port `3002`): Argon2id, brute-force lockout, rotating refresh tokens with family revocation on reuse.
   - `apps/shop-service` (port `3003`): profiles plus transactional outbox.
   - `apps/web-app`: **React 19**, Vite, Tailwind v4, TanStack Query, Leaflet map pin, single-flight token refresh.
-- **[IN PROGRESS] Phase 5:**
+- **[DONE] Phase 5** (verified 2026-11-22: build ✓, Prettier ✓, messaging 12/12, web unit 18/18, E2E 27/27, browser 13/13):
   - Slice 1 [DONE]: `apps/catalog-service` (port `3004`). `pg_trgm` GIN trigram search plus Redis cache-aside with O(1) epoch invalidation; 50k-product seed script.
   - Slice 2 [DONE]: `apps/inventory-service` (port `3005`). Optimistic concurrency `version` plus the `CHECK` stock guard, two-tier idempotency, and a 10k-row bulk import.
   - Slice 3 [DONE — GO/NO-GO PASSED]:
     - `OutboxRelay` (`FOR UPDATE SKIP LOCKED` + publisher confirms) and `IdempotentConsumerRunner` (per-tier retry queues `<q>.retry.<n>` at `5s → 30s → 300s`, then `.dlq`) in `libs/common/src/messaging/`. Gate report: [docs/phase-5-go-no-go.md](docs/phase-5-go-no-go.md); tests: `pnpm --filter @kirana/common test:int` (12/12: gate G1–G8 + workers).
     - Slice 3b: `OutboxRelayWorker` (libs/common) runs in `shop-service` and `inventory-service` (env `AMQP_URL`, `OUTBOX_RELAY_ENABLED=false` to disable); reconnects with backoff if RabbitMQ is down.
   - Slice 4a [DONE]: catalogue problem types; strict inventory/shop ownership; no self-registered admins (`create-admin` script); `shop.created.v1` carries `ownerId` and auth links `users.shop_id` via `RabbitConsumerWorker` (queue `auth.shop-linking`); `GET /v1/shops/me`; `GET /v1/catalog/products/by-ids`; DATE off-by-one fixed. E2E: `pnpm e2e:phase5` (27/27).
-  - Slice 4b [NEXT]: React catalog search, stock batch entry, and single-tap sales UI (`apps/web-app`).
+  - Slice 4b [DONE]: `apps/web-app` stock screens. Catalog search (name or EAN), add batch (Idempotency-Key reused across retries), stock list (available/reserved/days of cover, near-expiry badges), single-tap **Sell 1** (optimistic update with `expectedVersion`; rollback and refetch on conflict; network Retry reuses the same key). Route guards send users to /login, /shop-setup or /inventory; after shop creation the app polls refresh until the token carries `shopId`; sign-out revokes server-side.
 - **[UPCOMING] Phases 6–17:**
   - Phase 6: offline PWA (IndexedDB mutation queue, ZXing barcode scanning, EN/TE/HI i18n).
   - Phase 7: seeded YAML synthetic data simulator.
@@ -87,7 +87,7 @@ Primary persona: Ramesh (48), 200 sq ft shop, WhatsApp user, prefers Telugu/Hind
 | `apps/shop-service`      | `shops`, `disputes`, outbox (`shop_db`)                                                                    |
 | `apps/catalog-service`   | `products`, audit, search cache, `/metrics`; `src/scripts/seed-catalog.ts`                                 |
 | `apps/inventory-service` | `inventory_batches`, `sales_events`, `idempotency_records`, outbox (`inventory_db`)                        |
-| `apps/web-app`           | React PWA (login/register, shop setup with map pin)                                                        |
+| `apps/web-app`           | React PWA: login/register, shop setup (map pin), stock list + Sell 1, add batch with catalog search        |
 | `libs/common`            | `ProblemDetailsFilter`, `RateLimiterService`, `OutboxRelay`, `IdempotentConsumerRunner`, RabbitMQ topology |
 | `libs/contracts`         | Event envelope + `MatchFound` JSON Schemas, inventory OpenAPI                                              |
 | `infra`                  | Docker Compose, DB init scripts, Prometheus config                                                         |
@@ -106,6 +106,7 @@ pnpm --filter @kirana/<service> start                # after build
 pnpm --filter @kirana/catalog-service seed           # 50k products (after build)
 pnpm --filter @kirana/web-app dev                    # http://localhost:5173
 pnpm --filter @kirana/common test:int                # messaging gate + worker tests (needs postgres+rabbitmq)
+pnpm --filter @kirana/web-app test                   # web unit tests (vitest + jsdom)
 pnpm e2e:phase5                                      # full-stack E2E through the gateway (after pnpm -r build)
 ```
 
@@ -128,7 +129,6 @@ pnpm e2e:phase5                                      # full-stack E2E through th
    - The README says React 18 and `pnpm build`.
    - The swap saga design (phase-1 §4.1) has `COMPENSATING`/`FAILED_NO_STOCK` states and a `TransferCommitted` reply. The `swap_transactions` CHECK has only `FAILED`. Resolve this in Phase 9.
    - Redis idempotency (phase-1 §5.3) specifies `SET ... "IN_PROGRESS" NX`. Inventory uses GET-then-SET, so concurrent duplicates fall through to the Postgres UNIQUE constraint, which is still safe.
-   - `apps/web-app/tsconfig.tsbuildinfo` is committed.
 
 ## 7. Working Style & Collaboration Rules
 

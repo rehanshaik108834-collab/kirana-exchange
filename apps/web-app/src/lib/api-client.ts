@@ -19,6 +19,8 @@ export class ApiProblemError extends Error {
   readonly correlationId?: string;
   readonly retryAfterSeconds?: number;
   readonly errors?: unknown[];
+  /** Full problem body, including extension members such as `available` or `currentVersion`. */
+  readonly body?: Record<string, unknown>;
 
   constructor(params: {
     status: number;
@@ -28,6 +30,7 @@ export class ApiProblemError extends Error {
     correlationId?: string;
     retryAfterSeconds?: number;
     errors?: unknown[];
+    body?: Record<string, unknown>;
   }) {
     super(params.detail);
     this.name = 'ApiProblemError';
@@ -38,6 +41,7 @@ export class ApiProblemError extends Error {
     this.correlationId = params.correlationId;
     this.retryAfterSeconds = params.retryAfterSeconds;
     this.errors = params.errors;
+    this.body = params.body;
   }
 }
 
@@ -80,6 +84,19 @@ async function performSilentRefresh(): Promise<string> {
   return response.data.accessToken;
 }
 
+/**
+ * Single-flight refresh for app code (e.g. after shop creation, to pick up the linked shopId).
+ * Shares the interceptor's in-flight promise so a refresh token is never rotated twice.
+ */
+export function refreshSession(): Promise<string> {
+  if (!refreshPromise) {
+    refreshPromise = performSilentRefresh().finally(() => {
+      refreshPromise = null;
+    });
+  }
+  return refreshPromise;
+}
+
 function clearSessionAndRedirect() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
@@ -118,12 +135,7 @@ apiClient.interceptors.response.use(
     if (status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
       try {
-        if (!refreshPromise) {
-          refreshPromise = performSilentRefresh().finally(() => {
-            refreshPromise = null;
-          });
-        }
-        const newAccessToken = await refreshPromise;
+        const newAccessToken = await refreshSession();
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return apiClient(originalRequest);
       } catch {
@@ -165,6 +177,7 @@ apiClient.interceptors.response.use(
           detail: data.detail || data.title,
           correlationId,
           errors: data.errors,
+          body: data as Record<string, unknown>,
         }),
       );
     }

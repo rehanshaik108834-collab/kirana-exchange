@@ -1,6 +1,8 @@
 import { FormEvent, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, CheckCircle2, LogOut, MapPin } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, Loader2, LogOut, MapPin } from 'lucide-react';
+import { signOut, waitForLinkedShop } from '../../lib/session';
 import { useCreateShop } from '../auth/hooks';
 import { MapPinPicker } from './MapPinPicker';
 
@@ -18,7 +20,8 @@ const INDIAN_STATES = [
 
 export function ShopSetupPage() {
   const navigate = useNavigate();
-  const ownerId = localStorage.getItem('userId') || '';
+  const queryClient = useQueryClient();
+  const [linkState, setLinkState] = useState<'idle' | 'linking' | 'timeout'>('idle');
 
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
@@ -34,20 +37,34 @@ export function ShopSetupPage() {
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
-    createShopMutation.mutate({
-      name: name.trim(),
-      address: address.trim(),
-      lat,
-      lng,
-      state,
-      gstScheme,
-      swapRadiusKm,
-    });
+    createShopMutation.mutate(
+      {
+        name: name.trim(),
+        address: address.trim(),
+        lat,
+        lng,
+        state,
+        gstScheme,
+        swapRadiusKm,
+      },
+      {
+        onSuccess: async () => {
+          setLinkState('linking');
+          const shopId = await waitForLinkedShop().catch(() => null);
+          if (shopId) {
+            navigate('/inventory', { replace: true });
+          } else {
+            setLinkState('timeout');
+          }
+        },
+      },
+    );
   };
 
-  const handleSignOut = () => {
-    localStorage.clear();
-    navigate('/login');
+  const handleSignOut = async () => {
+    await signOut();
+    queryClient.clear();
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -76,7 +93,10 @@ export function ShopSetupPage() {
         <div className="mb-6 rounded-xl border border-teal-300 bg-teal-50 p-4 text-sm text-teal-900">
           <div className="flex items-center gap-2 font-semibold">
             <CheckCircle2 className="h-5 w-5 text-teal-700" />
-            Shop saved to shop_db &amp; ShopCreated outbox event queued!
+            {linkState === 'timeout'
+              ? 'Shop saved. Linking is taking longer than usual — please sign in again in a minute.'
+              : 'Shop saved! Setting up your stock screen…'}
+            {linkState === 'linking' && <Loader2 className="h-4 w-4 animate-spin" />}
           </div>
           <p className="mt-1 font-mono text-xs">
             Shop ID: {createShopMutation.data.id} ({createShopMutation.data.lat},{' '}
@@ -207,7 +227,7 @@ export function ShopSetupPage() {
 
         <button
           type="submit"
-          disabled={createShopMutation.isPending || !ownerId}
+          disabled={createShopMutation.isPending || linkState === 'linking'}
           className="w-full rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {createShopMutation.isPending ? 'Saving shop...' : 'Save Shop Profile'}

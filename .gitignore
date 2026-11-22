@@ -11,3 +11,4 @@ __pycache__/
 data/raw/
 coverage/
 .DS_Store
+*.tsbuildinfo
