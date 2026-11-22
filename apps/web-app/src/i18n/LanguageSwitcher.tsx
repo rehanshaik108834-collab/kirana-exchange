@@ -20,7 +20,7 @@ export function LanguageSwitcher({ className = '' }: { className?: string }) {
             aria-label={lang.name}
             aria-pressed={active}
             onClick={() => void i18n.changeLanguage(lang.code)}
-            className={`min-h-9 min-w-9 rounded-md px-2 font-semibold ${
+            className={`min-h-11 min-w-11 rounded-md px-2 font-semibold ${
               active ? 'bg-teal-700 text-white' : 'text-slate-700 hover:bg-slate-100'
             }`}
           >

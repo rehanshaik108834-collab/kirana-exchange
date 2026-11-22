@@ -12,3 +12,5 @@ data/raw/
 coverage/
 .DS_Store
 *.tsbuildinfo
+test-results/
+playwright-report/

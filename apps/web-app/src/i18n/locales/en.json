@@ -168,5 +168,12 @@
     "ready": "A new version of the app is ready.",
     "later": "Later",
     "reload": "Reload"
+  },
+  "signOutConfirm": {
+    "title_one": "{{count}} entry is not saved to your shop yet.",
+    "title_other": "{{count}} entries are not saved to your shop yet.",
+    "body": "If you sign out now, they will be deleted from this phone. Connect to the internet first so they can be saved.",
+    "anyway": "Sign out anyway",
+    "stay": "Stay signed in"
   }
 }

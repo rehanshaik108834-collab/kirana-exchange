@@ -65,7 +65,11 @@ export function SyncChip({ state, entries }: { state: SyncState; entries: Stored
     </span>
   );
   return summary.tone === 'attention' ? (
-    <Link to="/sync-issues" aria-label={i18n.t('sync.openFix', { label: summary.label })}>
+    <Link
+      to="/sync-issues"
+      aria-label={i18n.t('sync.openFix', { label: summary.label })}
+      className="inline-flex min-h-11 items-center"
+    >
       {chip}
     </Link>
   ) : (

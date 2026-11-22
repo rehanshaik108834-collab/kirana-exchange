@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Loader2, X } from 'lucide-react';
+import { AlertTriangle, Loader2, Minus, Plus, X } from 'lucide-react';
 import { formatMoney } from '../../i18n';
 import { currentClaims } from '../../lib/session';
 import { useIdempotencyKey } from '../../lib/use-idempotency-key';
@@ -14,6 +14,18 @@ function defaultBatchCode(): string {
   const d = new Date();
   const pad = (n: number) => String(n).padStart(2, '0');
   return `B${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+}
+
+const FIELD =
+  'min-h-12 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-teal-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-600';
+const STEP_BTN =
+  'inline-flex min-h-12 min-w-12 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-800 hover:bg-slate-50 disabled:opacity-40';
+
+/** Next stepper value: whole units, never below 1. */
+export function stepQty(current: string, delta: number): string {
+  const n = Number.parseInt(current, 10);
+  const base = Number.isFinite(n) && n > 0 ? n : 0;
+  return String(Math.max(1, base + delta));
 }
 
 /** US-08: add a stock batch (qty, cost price, expiry) for a catalog product. */
@@ -110,17 +122,38 @@ export function AddBatchPage() {
               <label htmlFor="qty" className="mb-1 block text-sm font-medium text-slate-700">
                 {t('addBatch.qty')}
               </label>
-              <input
-                id="qty"
-                type="number"
-                inputMode="numeric"
-                min={1}
-                step={1}
-                required
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-teal-600 focus:outline-none"
-              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  aria-label={t('addBatch.decrease')}
+                  aria-controls="qty"
+                  disabled={Number(qty) <= 1}
+                  onClick={() => setQty((q) => stepQty(q, -1))}
+                  className={STEP_BTN}
+                >
+                  <Minus className="h-5 w-5" aria-hidden="true" />
+                </button>
+                <input
+                  id="qty"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  required
+                  value={qty}
+                  onChange={(e) => setQty(e.target.value)}
+                  className={`${FIELD} text-center text-lg font-semibold`}
+                />
+                <button
+                  type="button"
+                  aria-label={t('addBatch.increase')}
+                  aria-controls="qty"
+                  onClick={() => setQty((q) => stepQty(q, 1))}
+                  className={STEP_BTN}
+                >
+                  <Plus className="h-5 w-5" aria-hidden="true" />
+                </button>
+              </div>
             </div>
             <div>
               <label htmlFor="cost" className="mb-1 block text-sm font-medium text-slate-700">
@@ -135,7 +168,7 @@ export function AddBatchPage() {
                 required
                 value={costPrice}
                 onChange={(e) => setCostPrice(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-teal-600 focus:outline-none"
+                className={FIELD}
               />
             </div>
             <div>
@@ -148,7 +181,7 @@ export function AddBatchPage() {
                 required
                 value={expiryDate}
                 onChange={(e) => setExpiryDate(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-teal-600 focus:outline-none"
+                className={FIELD}
               />
             </div>
             <div>
@@ -162,7 +195,7 @@ export function AddBatchPage() {
                 maxLength={64}
                 value={batchCode}
                 onChange={(e) => setBatchCode(e.target.value)}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-base focus:border-teal-600 focus:outline-none"
+                className={FIELD}
               />
             </div>
           </div>
