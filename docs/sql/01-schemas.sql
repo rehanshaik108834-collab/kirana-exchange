@@ -1,4 +1,5 @@
--- Kirana Exchange Phase 2 database initialization schemas.
+-- Kirana Exchange Phase 2 reference DDL (documentation only; NOT run by Docker init).
+-- Each service creates its own tables via TypeORM migrations; this file is the design reference.
 -- Apply each service section to its isolated database. There are no cross-service FKs.
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";

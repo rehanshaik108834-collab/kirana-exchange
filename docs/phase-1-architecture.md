@@ -144,7 +144,7 @@ stateDiagram-v2
     CANCELLED_COMPENSATED --> [*]
 ```
 
-> **Schema alignment needed (Phase 9):** the `swap_transactions.state` CHECK in the [Phase 2 DDL](../infra/db/init/01-schemas.sql) allows `FAILED` but not `FAILED_NO_STOCK` or `COMPENSATING`. Reconcile the two in the saga-orchestrator migration.
+> **Schema alignment needed (Phase 9):** the `swap_transactions.state` CHECK in the [Phase 2 DDL](sql/01-schemas.sql) allows `FAILED` but not `FAILED_NO_STOCK` or `COMPENSATING`. Reconcile the two in the saga-orchestrator migration.
 
 | State                 | Trigger / command                                                                                                          | Timeout (RabbitMQ TTL + DLX)           | Compensation on failure / timeout                                                                                                                                  |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

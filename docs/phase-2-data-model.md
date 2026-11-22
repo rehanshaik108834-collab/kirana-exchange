@@ -2,7 +2,7 @@
 
 ## Database ownership
 
-Each stateful service owns its tables in an isolated PostgreSQL database. The SQL initialization file is [01-schemas.sql](../infra/db/init/01-schemas.sql). There are no cross-service foreign keys; identifiers for records owned by another service are opaque UUIDs.
+Each stateful service owns its tables in an isolated PostgreSQL database. The reference DDL is [01-schemas.sql](sql/01-schemas.sql). There are no cross-service foreign keys; identifiers for records owned by another service are opaque UUIDs.
 
 ## Shared persistence patterns
 

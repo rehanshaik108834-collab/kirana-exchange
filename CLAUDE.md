@@ -19,7 +19,7 @@ Primary persona: Ramesh (48), 200 sq ft shop, WhatsApp user, prefers Telugu/Hind
 | [docs/project-plan.md](docs/project-plan.md)                                                               | Vision, users, scope, stack, Redis map, ML design, data/simulator plan, security, testing, risks, decisions               |
 | [docs/phase-0-requirements.md](docs/phase-0-requirements.md)                                               | Glossary, US-01–US-40, quantified NFRs + verification methods, Definition of Done, pilot guide, scope freeze              |
 | [docs/phase-1-architecture.md](docs/phase-1-architecture.md)                                               | Service boundaries, event catalogue, C4, swap & group-buy state machines, protocols, **ADR-001–005**, 4 failure scenarios |
-| [docs/phase-2-data-model.md](docs/phase-2-data-model.md)                                                   | Data ownership, shared persistence patterns, ERD, index matrix (DDL: `infra/db/init/01-schemas.sql`)                      |
+| [docs/phase-2-data-model.md](docs/phase-2-data-model.md)                                                   | Data ownership, shared persistence patterns, ERD, index matrix (reference DDL: `docs/sql/01-schemas.sql`)                 |
 | [docs/execution-roadmap.md](docs/execution-roadmap.md)                                                     | Phases 6–17 tasks and "Done when" criteria, the 6 Go/No-Go gates, cut order                                               |
 | [docs/error-catalogue.md](docs/error-catalogue.md), [docs/rate-limit-policy.md](docs/rate-limit-policy.md) | RFC 9457 problem types; rate-limit layers                                                                                 |
 
@@ -29,7 +29,7 @@ Primary persona: Ramesh (48), 200 sq ft shop, WhatsApp user, prefers Telugu/Hind
 
 - **[DONE] Phases 0–2:**
   - Frozen v1.0 scope; 13 glossary terms; 16 domain events in the catalogue.
-  - Per-service DDL in [infra/db/init/01-schemas.sql](infra/db/init/01-schemas.sql), plus the RFC 9457 error catalogue and the rate-limit policy.
+  - Per-service DDL in [docs/sql/01-schemas.sql](docs/sql/01-schemas.sql) (reference only; migrations own the schemas), plus the RFC 9457 error catalogue and the rate-limit policy.
   - ADR-001–005, the C4 diagrams, both state machines and the 4 failure scenarios are in [docs/phase-1-architecture.md](docs/phase-1-architecture.md). `docs/adr/` stays empty.
   - OpenAPI covers **only** the inventory reserve endpoint ([libs/contracts/openapi/inventory-service.yaml](libs/contracts/openapi/inventory-service.yaml)).
 - **[DONE] Phase 3:**
@@ -133,7 +133,7 @@ pnpm --filter @kirana/web-app test:e2e               # browser E2E (Playwright +
 7. ~~DATE off-by-one~~ **Fixed (4a):** `toDateOnly()` uses local-time getters (E2E verifies expiry is preserved after a sale).
 8. ~~Retry head-of-line blocking~~ **Fixed** (per-tier retry queues; gate test G7).
 9. **Drift:**
-   - `01-schemas.sql` runs against the default DB, not the 10 service DBs; services rely on their own migrations.
+   - ~~`01-schemas.sql` ran against the default DB~~ **Fixed:** moved to `docs/sql/` (reference only); `infra/db/init/` now only creates the 10 DBs + `pgcrypto` (+ `pg_trgm` on `catalog_db`); migrations own all tables.
    - `MatchFound` schema says `candidateShopId`, docs say `candidateShopIds`.
    - The README says React 18 and `pnpm build`.
    - The swap saga design (phase-1 §4.1) has `COMPENSATING`/`FAILED_NO_STOCK` states and a `TransferCommitted` reply. The `swap_transactions` CHECK has only `FAILED`. Resolve this in Phase 9.
