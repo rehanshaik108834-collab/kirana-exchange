@@ -5,8 +5,8 @@ import { currentClaims } from '../../lib/session';
 import { useIdempotencyKey } from '../../lib/use-idempotency-key';
 import { CatalogSearch } from '../catalog/CatalogSearch';
 import type { Product } from '../catalog/hooks';
+import { enqueueBatch } from '../offline/runtime';
 import { addDaysIso } from './expiry';
-import { useAddBatch } from './hooks';
 
 function defaultBatchCode(): string {
   const d = new Date();
@@ -18,7 +18,8 @@ function defaultBatchCode(): string {
 export function AddBatchPage() {
   const navigate = useNavigate();
   const shopId = currentClaims()?.shopId ?? null;
-  const addBatch = useAddBatch();
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const idempotency = useIdempotencyKey();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -34,33 +35,33 @@ export function AddBatchPage() {
     idempotency.rotate();
   };
 
-  const handleSubmit = (event: FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
-    if (!product || !shopId) return;
-    addBatch.mutate(
-      {
-        shopId,
-        productId: product.id,
-        batchCode: batchCode.trim(),
-        qty: Number(qty),
-        costPrice: Number(costPrice),
-        expiryDate,
-        // Same key on every retry of this submission; rotated only after success.
-        idempotencyKey: idempotency.key,
-      },
-      {
-        onSuccess: () => {
-          idempotency.rotate();
-          navigate('/inventory');
+    if (!product || !shopId || saving) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      // Saved to the device first, then synced with this submission's Idempotency-Key.
+      // Server-side problems (e.g. a duplicate batch code) show up later as "needs attention".
+      await enqueueBatch(
+        {
+          shopId,
+          productId: product.id,
+          batchCode: batchCode.trim(),
+          qty: Number(qty),
+          costPrice: Number(costPrice),
+          expiryDate,
         },
-        onError: (error) => {
-          // A server response (4xx/5xx) means this attempt is settled and nothing was created,
-          // so a corrected resubmit is a new submission. Network errors (status 0) keep the key,
-          // because the request may have reached the server.
-          if (error.status !== 0) idempotency.rotate();
-        },
-      },
-    );
+        product.name,
+        idempotency.key,
+      );
+      idempotency.rotate();
+      navigate('/inventory');
+    } catch {
+      setSaveError('Could not save on this phone. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (!shopId) {
@@ -79,7 +80,7 @@ export function AddBatchPage() {
         </div>
       ) : (
         <form
-          onSubmit={handleSubmit}
+          onSubmit={(e) => void handleSubmit(e)}
           className="space-y-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
         >
           <div className="flex items-start justify-between gap-2 rounded-lg bg-teal-50 p-3">
@@ -161,28 +162,19 @@ export function AddBatchPage() {
             </div>
           </div>
 
-          {addBatch.error && (
+          {saveError && (
             <div className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p>
-                  {addBatch.error.status === 0
-                    ? 'No connection — not saved yet. Tap Save again; it will not be added twice.'
-                    : addBatch.error.detail}
-                </p>
-                {addBatch.error.correlationId && (
-                  <p className="mt-1 font-mono text-xs">Ref: {addBatch.error.correlationId}</p>
-                )}
-              </div>
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <p>{saveError}</p>
             </div>
           )}
 
           <button
             type="submit"
-            disabled={addBatch.isPending}
+            disabled={saving}
             className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-base font-semibold text-white hover:bg-teal-800 disabled:opacity-50"
           >
-            {addBatch.isPending && <Loader2 className="h-5 w-5 animate-spin" />}
+            {saving && <Loader2 className="h-5 w-5 animate-spin" />}
             Save batch
           </button>
         </form>

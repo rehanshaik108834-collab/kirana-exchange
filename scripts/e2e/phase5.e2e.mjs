@@ -346,6 +346,57 @@ async function main() {
       listed.body[0]?.expiryDate === '2027-03-15',
   );
 
+  // ---- Phase 6.3: offline sales keep their device time (bounded soldAt) ----
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  const offlineKey = randomUUID();
+  const offlineSaleBody = {
+    shopId: a.shopId,
+    batchId: batch.id,
+    qty: 1,
+    expectedVersion: sale.body.batch.version,
+    soldAt: twoHoursAgo,
+  };
+  const offlineSale = await call('POST', '/inventory/sales', {
+    token: a.tokens.accessToken,
+    idem: offlineKey,
+    body: offlineSaleBody,
+  });
+  check(
+    'Offline sale keeps the device soldAt',
+    offlineSale.status === 201 &&
+      new Date(offlineSale.body.sale.soldAt).toISOString() === twoHoursAgo,
+    offlineSale.body?.sale?.soldAt,
+  );
+  const offlineReplay = await call('POST', '/inventory/sales', {
+    token: a.tokens.accessToken,
+    idem: offlineKey,
+    body: offlineSaleBody,
+  });
+  check(
+    'Replaying the queued sale returns the same sale (exactly once)',
+    offlineReplay.status === 201 && offlineReplay.body?.sale?.id === offlineSale.body?.sale?.id,
+  );
+  const tooOld = await call('POST', '/inventory/sales', {
+    token: a.tokens.accessToken,
+    idem: randomUUID(),
+    body: {
+      ...offlineSaleBody,
+      expectedVersion: offlineSale.body.batch.version,
+      soldAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
+    },
+  });
+  check('soldAt older than 7 days -> 400', tooOld.status === 400, `status ${tooOld.status}`);
+  const future = await call('POST', '/inventory/sales', {
+    token: a.tokens.accessToken,
+    idem: randomUUID(),
+    body: {
+      ...offlineSaleBody,
+      expectedVersion: offlineSale.body.batch.version,
+      soldAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+    },
+  });
+  check('soldAt in the future -> 400', future.status === 400, `status ${future.status}`);
+
   const crossRead = await call('GET', `/inventory/batches?shopId=${a.shopId}`, {
     token: b.tokens.accessToken,
   });

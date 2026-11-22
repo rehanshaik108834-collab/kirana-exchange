@@ -53,7 +53,8 @@ Primary persona: Ramesh (48), 200 sq ft shop, WhatsApp user, prefers Telugu/Hind
 - **[IN PROGRESS] Phase 6: Offline-capable PWA** (plan: client-side outbox in IndexedDB, single-flight sync, conflict screen, ZXing, EN/TE/HI, Lighthouse ≥ 90):
   - Slice 6.1 [DONE]: `vite-plugin-pwa` (generateSW, prompt-to-update, app-shell precache only, no API caching), generated icons + manifest, route-level code splitting (Leaflet only on shop setup). Unit 21/21; browser: SW active, offline reload and deep link served, 6/6.
   - Slice 6.2 [DONE]: IndexedDB (`idb`) stores `offline_mutation_queue` / `catalog_cache` / `query_cache`; allow-listed query persistence (server data only, never optimistic writes; 7-day max age); offline reload shows saved stock with an "Offline — saved at" note; offline catalog search from the cache; sign-out wipes IndexedDB. Unit 31/31; browser 6/6.
-  - Next: 6.3 offline queue + sync (US-13), 6.4 conflict screen (US-14), 6.5 ZXing, 6.6 i18n, 6.7 usability/privacy/Lighthouse.
+  - Slice 6.3 [DONE] (US-13): client-side outbox. Sell 1 / Add stock commit to `offline_mutation_queue` first; `SyncEngine` drains FIFO with each entry's own Idempotency-Key, single-flight in-tab + Web Locks across tabs; network/5xx/429 back off, 401 keeps the queue, other 4xx become `conflict` and later sales on that batch `blocked`; `projectBatches` = snapshot ⊕ queue (offline version chaining); header sync chip; inventory-service `soldAt` (device time, bounded 5 min future / 7 days, validated only for new sales). Unit 41/41; E2E 31/31; browser: 20 offline sales, 2 tabs, repeated triggers → exactly 20 server sales, qty −20, version +20, offline `sold_at` (12/12).
+  - Next: 6.4 conflict screen (US-14), 6.5 ZXing, 6.6 i18n, 6.7 usability/privacy/Lighthouse.
 - **[UPCOMING] Phases 7–17:**
   - Phase 7: seeded YAML synthetic data simulator.
   - Phase 8: ML forecasting and risk service.

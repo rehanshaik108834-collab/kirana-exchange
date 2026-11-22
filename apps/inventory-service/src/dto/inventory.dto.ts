@@ -4,6 +4,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsDateString,
+  IsISO8601,
   IsInt,
   IsNumber,
   IsOptional,
@@ -53,6 +54,14 @@ export class RecordSaleDto {
   @IsInt()
   @Min(1)
   expectedVersion: number;
+
+  /**
+   * When the sale happened (ISO 8601). Offline sales are synced later, so the device time is
+   * kept for forecasting accuracy. Bounded server-side; defaults to now.
+   */
+  @IsOptional()
+  @IsISO8601({ strict: true })
+  soldAt?: string;
 }
 
 export class ReserveStockDto {

@@ -1,4 +1,4 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('sales_events')
 export class SaleEvent {
@@ -17,7 +17,8 @@ export class SaleEvent {
   @Column({ type: 'int' })
   qty: number;
 
-  @CreateDateColumn({ name: 'sold_at', type: 'timestamptz' })
+  // Set explicitly by the service (device time for offline sales, bounded), not by insert time.
+  @Column({ name: 'sold_at', type: 'timestamptz', default: () => 'NOW()' })
   soldAt: Date;
 
   @Column({ name: 'stockout_flag', type: 'boolean', default: false })

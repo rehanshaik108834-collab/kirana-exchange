@@ -45,6 +45,25 @@ export function toDateOnly(value: string | Date): string {
   return String(value).slice(0, 10);
 }
 
+export const SOLD_AT_MAX_FUTURE_MS = 5 * 60 * 1000;
+export const SOLD_AT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+/**
+ * Offline sales carry the device time of the tap. Accept it only within a sane window
+ * (clock skew up to 5 min ahead, offline up to 7 days) so a wrong device clock cannot
+ * corrupt the sales history used by forecasting.
+ */
+export function resolveSoldAt(soldAt: string | undefined, now = Date.now()): Date {
+  if (!soldAt) return new Date(now);
+  const t = Date.parse(soldAt);
+  if (Number.isNaN(t) || t > now + SOLD_AT_MAX_FUTURE_MS || t < now - SOLD_AT_MAX_AGE_MS) {
+    throw new BadRequestException(
+      'soldAt must be within the last 7 days and not more than 5 minutes in the future',
+    );
+  }
+  return new Date(t);
+}
+
 interface CachedIdempotencyEnvelope<T> {
   requestHash: string;
   body: T;
@@ -333,6 +352,7 @@ export class InventoryService {
       batchId: string;
       qty: number;
       expectedVersion: number;
+      soldAt?: string;
     },
     idempotencyKey: string,
     correlationId: string,
@@ -414,6 +434,9 @@ export class InventoryService {
           productId: updatedBatch.productId,
           batchId: updatedBatch.id,
           qty: dto.qty,
+          // Validated only for NEW sales (after the idempotency replay checks), so replaying an
+          // already-recorded offline sale always returns its original result.
+          soldAt: resolveSoldAt(dto.soldAt),
           stockoutFlag,
           idempotencyKey: validIdemKey,
         });

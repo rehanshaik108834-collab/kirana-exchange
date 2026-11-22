@@ -5,6 +5,8 @@ import { LogOut, PackagePlus, Store, Warehouse } from 'lucide-react';
 import { apiClient, ApiProblemError } from '../../lib/api-client';
 import { signOut } from '../../lib/session';
 import type { ShopResponse } from '../auth/hooks';
+import { SyncChip } from '../offline/SyncChip';
+import { useQueueEntries, useSyncState, useSyncTriggers } from '../offline/runtime';
 
 export function useMyShop() {
   return useQuery<ShopResponse, ApiProblemError>({
@@ -24,6 +26,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const shop = useMyShop();
+  useSyncTriggers();
+  const syncState = useSyncState();
+  const queueEntries = useQueueEntries();
 
   const handleSignOut = async () => {
     await signOut();
@@ -35,10 +40,11 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="min-h-screen">
       <header className="sticky top-0 z-[1000] border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 py-3">
-          <div className="flex min-w-0 items-center gap-2 text-teal-700">
+          <div className="flex min-w-0 flex-1 items-center gap-2 text-teal-700">
             <Store className="h-5 w-5 shrink-0" />
             <span className="truncate font-semibold">{shop.data?.name ?? 'Kirana Exchange'}</span>
           </div>
+          <SyncChip state={syncState} entries={queueEntries} />
           <button
             type="button"
             onClick={handleSignOut}
