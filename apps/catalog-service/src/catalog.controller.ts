@@ -54,6 +54,12 @@ export class CatalogController {
     return this.catalogService.findByEan(ean);
   }
 
+  /** Batch lookup for inventory screens: ?ids=uuid1,uuid2 (max 100). Includes inactive/merged rows. */
+  @Get('v1/catalog/products/by-ids')
+  async findByIds(@Query('ids') idsRaw = '') {
+    return this.catalogService.findByIds(idsRaw);
+  }
+
   @Get('v1/catalog/products/search')
   async search(@Query('q') query = '', @Query('limit') limitRaw?: string) {
     const limit = limitRaw ? Number.parseInt(limitRaw, 10) : 20;

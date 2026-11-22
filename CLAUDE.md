@@ -36,7 +36,7 @@ Primary persona: Ramesh (48), 200 sq ft shop, WhatsApp user, prefers Telugu/Hind
   - Docker Compose (`postgres:16`, `redis:7`, `rabbitmq:3-management`, `mailhog`, `prometheus`, `grafana`). Prometheus currently scrapes only itself.
   - `@kirana/common` `ProblemDetailsFilter`.
   - The CI workflow runs Prettier and Ruff only; there are no tests yet.
-- **[DONE, with known security gaps — see §6] Phase 4:**
+- **[DONE] Phase 4** (security gaps closed in Phase 5 Slice 4a):
   - Redis Lua rate limiter (token bucket + sliding window) in `@kirana/common`.
   - `apps/api-gateway` (port `3001`): JWT, Redis denylist, `X-Correlation-Id`, proxy.
   - `apps/auth-service` (port `3002`): Argon2id, brute-force lockout, rotating refresh tokens with family revocation on reuse.
@@ -46,9 +46,10 @@ Primary persona: Ramesh (48), 200 sq ft shop, WhatsApp user, prefers Telugu/Hind
   - Slice 1 [DONE]: `apps/catalog-service` (port `3004`). `pg_trgm` GIN trigram search plus Redis cache-aside with O(1) epoch invalidation; 50k-product seed script.
   - Slice 2 [DONE]: `apps/inventory-service` (port `3005`). Optimistic concurrency `version` plus the `CHECK` stock guard, two-tier idempotency, and a 10k-row bulk import.
   - Slice 3 [DONE — GO/NO-GO PASSED]:
-    - `OutboxRelay` (`FOR UPDATE SKIP LOCKED` + publisher confirms) and `IdempotentConsumerRunner` (per-tier retry queues `<q>.retry.<n>` at `5s → 30s → 300s`, then `.dlq`) in `libs/common/src/messaging/`. Gate report: [docs/phase-5-go-no-go.md](docs/phase-5-go-no-go.md); tests: `pnpm --filter @kirana/common test:int` (8/8).
-    - Slice 3b: `OutboxRelayWorker` (libs/common) runs in `shop-service` and `inventory-service` (env `AMQP_URL`, `OUTBOX_RELAY_ENABLED=false` to disable); reconnects with backoff if RabbitMQ is down. No service consumes events yet.
-  - Slice 4 [NEXT]: React catalog search, stock batch entry, and single-tap sales UI (`apps/web-app`).
+    - `OutboxRelay` (`FOR UPDATE SKIP LOCKED` + publisher confirms) and `IdempotentConsumerRunner` (per-tier retry queues `<q>.retry.<n>` at `5s → 30s → 300s`, then `.dlq`) in `libs/common/src/messaging/`. Gate report: [docs/phase-5-go-no-go.md](docs/phase-5-go-no-go.md); tests: `pnpm --filter @kirana/common test:int` (12/12: gate G1–G8 + workers).
+    - Slice 3b: `OutboxRelayWorker` (libs/common) runs in `shop-service` and `inventory-service` (env `AMQP_URL`, `OUTBOX_RELAY_ENABLED=false` to disable); reconnects with backoff if RabbitMQ is down.
+  - Slice 4a [DONE]: catalogue problem types; strict inventory/shop ownership; no self-registered admins (`create-admin` script); `shop.created.v1` carries `ownerId` and auth links `users.shop_id` via `RabbitConsumerWorker` (queue `auth.shop-linking`); `GET /v1/shops/me`; `GET /v1/catalog/products/by-ids`; DATE off-by-one fixed. E2E: `pnpm e2e:phase5` (27/27).
+  - Slice 4b [NEXT]: React catalog search, stock batch entry, and single-tap sales UI (`apps/web-app`).
 - **[UPCOMING] Phases 6–17:**
   - Phase 6: offline PWA (IndexedDB mutation queue, ZXing barcode scanning, EN/TE/HI i18n).
   - Phase 7: seeded YAML synthetic data simulator.
@@ -104,6 +105,8 @@ pnpm exec prettier --check "**/*.{ts,tsx,js,json,md,yml,yaml}"
 pnpm --filter @kirana/<service> start                # after build
 pnpm --filter @kirana/catalog-service seed           # 50k products (after build)
 pnpm --filter @kirana/web-app dev                    # http://localhost:5173
+pnpm --filter @kirana/common test:int                # messaging gate + worker tests (needs postgres+rabbitmq)
+pnpm e2e:phase5                                      # full-stack E2E through the gateway (after pnpm -r build)
 ```
 
 - Ports: gateway `3001`, auth `3002`, shop `3003`, catalog `3004`, inventory `3005`, web `5173`, Postgres `5432`, Redis `6379`, RabbitMQ `5672`/`15672`.
@@ -111,13 +114,13 @@ pnpm --filter @kirana/web-app dev                    # http://localhost:5173
 
 ## 6. Known Gaps & Tech Debt (verify before relying on any feature)
 
-1. **No consumers yet:** relays run in shop and inventory (Slice 3b); no service consumes events until Slice 4a (auth shop-linking).
-2. **`shopId` never linked:** `users.shop_id` is only set at register; nothing updates it after `POST /v1/shops`, so JWTs carry `shopId: null`.
-3. **Ownership bypass:** `assertShopOwnership` ([inventory.controller.ts](apps/inventory-service/src/inventory.controller.ts)) passes when `x-shop-id` is absent.
-4. **Privilege escalation:** `RegisterDto` ([auth.dto.ts](apps/auth-service/src/dto/auth.dto.ts)) accepts `role: 'admin'` and any `shopId`.
-5. **Shop endpoints unprotected:** `ownerId` comes from the request body, and there are no ownership checks on `GET /:id` or `PATCH /:id/location`.
-6. **Problem `type` URIs:** `ProblemDetailsFilter` emits `/errors/<status>`, not the catalogue slugs (e.g. `/errors/version-conflict`), and `title` is the exception class name.
-7. **CONFIRMED DATE off-by-one:** `mapRawBatch` ([inventory.service.ts](apps/inventory-service/src/inventory.service.ts)) calls `toISOString()` on node-postgres `Date`s from raw queries. Live test: expiry 2027-03-15 became 2027-03-14 after a sale, in both the response and the `StockUpdated` event. Fix is in Slice 4a.
+1. **Consumers:** only auth-service consumes events (`shop.created.v1`). Reusable `RabbitConsumerWorker` in libs/common for later services.
+2. ~~shopId never linked~~ **Fixed (4a).** Known limitation: `shop_staff` has no invite flow yet, so staff never get a shopId and are denied all shop data.
+3. ~~Ownership bypass~~ **Fixed (4a):** non-admins need a matching JWT `shopId`.
+4. ~~Privilege escalation~~ **Fixed (4a):** registration allows only `shop_owner`/`shop_staff`; admins via `pnpm --filter @kirana/auth-service create-admin`.
+5. ~~Shop endpoints unprotected~~ **Fixed (4a):** owner from `x-user-id`; only `shop_owner` creates; owner/admin only for `GET /:id` and `PATCH /:id/location`.
+6. ~~Problem type URIs~~ **Fixed (4a):** catalogue slugs via `DomainProblemException` / status defaults; 500s no longer leak internal messages.
+7. ~~DATE off-by-one~~ **Fixed (4a):** `toDateOnly()` uses local-time getters (E2E verifies expiry is preserved after a sale).
 8. ~~Retry head-of-line blocking~~ **Fixed** (per-tier retry queues; gate test G7).
 9. **Drift:**
    - `01-schemas.sql` runs against the default DB, not the 10 service DBs; services rely on their own migrations.

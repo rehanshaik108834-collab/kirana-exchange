@@ -13,6 +13,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { IdempotentConsumerRunner } from '../src/messaging/idempotent-consumer';
 import { OutboxRelay } from '../src/messaging/outbox-relay.service';
 import { OutboxRelayWorker } from '../src/messaging/outbox-relay.worker';
+import { RabbitConsumerWorker } from '../src/messaging/rabbit-consumer.worker';
 import {
   KIRANA_EVENTS_EXCHANGE,
   assertConsumerQueueTopology,
@@ -487,6 +488,68 @@ describe('Slice 3b: OutboxRelayWorker', () => {
     expect(await scalar(`SELECT COUNT(*) AS n FROM outbox_events WHERE published_at IS NULL`)).toBe(
       5,
     );
+    await expect(worker.stop()).resolves.toBeUndefined();
+  });
+});
+
+describe('Slice 4a: RabbitConsumerWorker', () => {
+  it('C1: consumes subscribed events exactly once, even when re-published', async () => {
+    const rid = randomUUID().slice(0, 8);
+    const routingKey = `gate.${rid}.evt`;
+    const queue = `gate.${rid}.worker`;
+    queuesToDelete.push(queue, `${queue}.dlq`, ...[0, 1, 2].map((n) => `${queue}.retry.${n}`));
+
+    const worker = new RabbitConsumerWorker(ds, {
+      amqpUrl: AMQP_URL,
+      serviceName: 'gate-test',
+      retryDelaysMs: FAST_RETRY_DELAYS_MS,
+      subscriptions: [
+        { queue, bindingKeys: [routingKey], consumerName: 'gate-worker', handler: recordEffect },
+      ],
+    });
+    worker.start();
+    try {
+      await waitFor(async () => worker.isConnected(), 10_000, 'worker connected');
+      const ids = await insertOutbox(routingKey, 10);
+      const relay = new OutboxRelay(ds, await (await newConnection()).createConfirmChannel());
+      await drainRelay(relay);
+      // Re-publish the same 10 events (simulates relay crash redelivery).
+      await ds.query(`UPDATE outbox_events SET published_at = NULL`);
+      await drainRelay(relay);
+
+      await waitFor(
+        async () => (await scalar(`SELECT COUNT(*) AS n FROM processed_messages`)) === 10,
+        15_000,
+        '10 processed',
+      );
+      await new Promise((r) => setTimeout(r, 500));
+      expect(await scalar(`SELECT COUNT(*) AS n FROM gate_effects`)).toBe(ids.length);
+      expect(await scalar(`SELECT COUNT(*) AS n FROM gate_effects WHERE applied_count <> 1`)).toBe(
+        0,
+      );
+    } finally {
+      await worker.stop();
+    }
+  });
+
+  it('C2: broker unreachable -> no crash, stop() resolves', async () => {
+    const worker = new RabbitConsumerWorker(ds, {
+      amqpUrl: 'amqp://kirana_admin:secretpassword@127.0.0.1:5999',
+      serviceName: 'gate-test',
+      minBackoffMs: 100,
+      maxBackoffMs: 200,
+      subscriptions: [
+        {
+          queue: 'gate.never',
+          bindingKeys: ['gate.never'],
+          consumerName: 'gate-worker',
+          handler: recordEffect,
+        },
+      ],
+    });
+    worker.start();
+    await new Promise((r) => setTimeout(r, 700));
+    expect(worker.isConnected()).toBe(false);
     await expect(worker.stop()).resolves.toBeUndefined();
   });
 });

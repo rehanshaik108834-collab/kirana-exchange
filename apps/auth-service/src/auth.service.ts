@@ -94,7 +94,7 @@ export class AuthService {
           email: dto.email ?? null,
           passwordHash,
           role,
-          shopId: dto.shopId ?? null,
+          shopId: null,
           failedAttempts: 0,
           lockedUntil: null,
         });

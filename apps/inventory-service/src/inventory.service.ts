@@ -5,7 +5,13 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { REDIS_CLIENT } from '@kirana/common';
+import {
+  DomainProblemException,
+  IdempotencyConflictProblem,
+  InsufficientStockProblem,
+  REDIS_CLIENT,
+  VersionConflictProblem,
+} from '@kirana/common';
 import { createHash } from 'crypto';
 import Redis from 'ioredis';
 import pino from 'pino';
@@ -26,6 +32,18 @@ const RELEASE_LOCK_LUA = `
     return 0
   end
 `;
+
+/**
+ * node-postgres parses a DATE column into a JS Date at *local* midnight. toISOString() would
+ * shift it to UTC (the previous day in IST), so rebuild YYYY-MM-DD from local-time getters.
+ */
+export function toDateOnly(value: string | Date): string {
+  if (value instanceof Date) {
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${value.getFullYear()}-${pad(value.getMonth() + 1)}-${pad(value.getDate())}`;
+  }
+  return String(value).slice(0, 10);
+}
 
 interface CachedIdempotencyEnvelope<T> {
   requestHash: string;
@@ -80,10 +98,7 @@ export class InventoryService {
   }
 
   private mapRawBatch(row: RawBatchRow): InventoryBatch {
-    const expiryDate =
-      row.expiry_date instanceof Date
-        ? row.expiry_date.toISOString().slice(0, 10)
-        : String(row.expiry_date).slice(0, 10);
+    const expiryDate = toDateOnly(row.expiry_date);
 
     return Object.assign(new InventoryBatch(), {
       id: row.id,
@@ -113,11 +128,11 @@ export class InventoryService {
       if (!raw) return null;
       const parsed = JSON.parse(raw) as CachedIdempotencyEnvelope<T>;
       if (parsed.requestHash !== requestHash) {
-        throw new ConflictException('Idempotency-Key reused with a different request payload');
+        throw IdempotencyConflictProblem('Idempotency-Key reused with a different request payload');
       }
       return parsed.body;
     } catch (err) {
-      if (err instanceof ConflictException) {
+      if (err instanceof DomainProblemException) {
         throw err;
       }
       this.logger.warn(
@@ -226,7 +241,9 @@ export class InventoryService {
         });
         if (existing) {
           if (existing.productId !== dto.productId || existing.batchCode !== dto.batchCode) {
-            throw new ConflictException('Idempotency-Key reused with a different batch payload');
+            throw IdempotencyConflictProblem(
+              'Idempotency-Key reused with a different batch payload',
+            );
           }
           return existing;
         }
@@ -342,7 +359,9 @@ export class InventoryService {
         });
         if (existingSale) {
           if (existingSale.batchId !== dto.batchId || existingSale.qty !== dto.qty) {
-            throw new ConflictException('Idempotency-Key reused with a different sale payload');
+            throw IdempotencyConflictProblem(
+              'Idempotency-Key reused with a different sale payload',
+            );
           }
           const existingBatch = await manager.findOne(InventoryBatch, {
             where: { id: existingSale.batchId, shopId: dto.shopId },
@@ -375,13 +394,15 @@ export class InventoryService {
             throw new NotFoundException(`Batch ${dto.batchId} not found for shop ${dto.shopId}`);
           }
           if (current.version !== dto.expectedVersion) {
-            throw new ConflictException(
-              `Optimistic concurrency version conflict: expected=${dto.expectedVersion}, actual=${current.version}`,
+            throw VersionConflictProblem(
+              `Batch version changed: expected=${dto.expectedVersion}, actual=${current.version}`,
+              { expectedVersion: dto.expectedVersion, currentVersion: current.version },
             );
           }
           const available = current.qty - current.reservedQty;
-          throw new ConflictException(
+          throw InsufficientStockProblem(
             `Insufficient unreserved stock: requested=${dto.qty}, available=${available}`,
+            { requested: dto.qty, available },
           );
         }
 
@@ -448,7 +469,9 @@ export class InventoryService {
         });
         if (existingSale) {
           if (existingSale.batchId !== dto.batchId || existingSale.qty !== dto.qty) {
-            throw new ConflictException('Idempotency-Key reused with a different sale payload');
+            throw IdempotencyConflictProblem(
+              'Idempotency-Key reused with a different sale payload',
+            );
           }
           const existingBatch = await this.dataSource.getRepository(InventoryBatch).findOne({
             where: { id: existingSale.batchId, shopId: dto.shopId },
@@ -523,7 +546,7 @@ export class InventoryService {
 
         if (existingIdem.length > 0) {
           if (existingIdem[0].request_hash !== requestHash) {
-            throw new ConflictException(
+            throw IdempotencyConflictProblem(
               'Idempotency-Key reused with a different reservation payload',
             );
           }
@@ -552,13 +575,15 @@ export class InventoryService {
             throw new NotFoundException(`Batch ${batchId} not found for shop ${dto.shopId}`);
           }
           if (current.version !== dto.version) {
-            throw new ConflictException(
-              `Optimistic concurrency version conflict: expected=${dto.version}, actual=${current.version}`,
+            throw VersionConflictProblem(
+              `Batch version changed: expected=${dto.version}, actual=${current.version}`,
+              { expectedVersion: dto.version, currentVersion: current.version },
             );
           }
           const available = current.qty - current.reservedQty;
-          throw new ConflictException(
+          throw InsufficientStockProblem(
             `Insufficient unreserved stock: requested=${dto.qty}, available=${available}`,
+            { requested: dto.qty, available },
           );
         }
 
@@ -642,7 +667,9 @@ export class InventoryService {
 
       if (existingIdem.length > 0) {
         if (existingIdem[0].request_hash !== requestHash) {
-          throw new ConflictException('Idempotency-Key reused with a different release payload');
+          throw IdempotencyConflictProblem(
+            'Idempotency-Key reused with a different release payload',
+          );
         }
         return existingIdem[0].response_body;
       }
@@ -779,10 +806,7 @@ export class InventoryService {
           for (let i = 0; i < insertedRows.length; i++) {
             const b = insertedRows[i];
             const base = i * 6;
-            const expiryDate =
-              b.expiry_date instanceof Date
-                ? b.expiry_date.toISOString().slice(0, 10)
-                : String(b.expiry_date).slice(0, 10);
+            const expiryDate = toDateOnly(b.expiry_date);
 
             outboxPlaceholders.push(
               `($${base + 1}, $${base + 2}, $${base + 3}, 1, $${base + 4}, $${base + 5}, $${base + 6}::jsonb)`,

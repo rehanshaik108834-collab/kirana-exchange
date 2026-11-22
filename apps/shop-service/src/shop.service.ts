@@ -1,10 +1,20 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import pino from 'pino';
 import { DataSource } from 'typeorm';
 import { v4 as uuidv4, validate as isUuid } from 'uuid';
 import { CreateShopDto, UpdateShopLocationDto } from './dto/shop.dto';
 import { OutboxEvent } from './entities/outbox-event.entity';
 import { Shop } from './entities/shop.entity';
+
+export interface ShopActor {
+  userId: string;
+  role: string;
+}
 
 @Injectable()
 export class ShopService {
@@ -25,13 +35,20 @@ export class ShopService {
    * 3. Commit transaction.
    * Note: The background relay will poll this outbox event later to update Redis GEOADD.
    */
-  async createShop(dto: CreateShopDto, correlationId = 'unknown'): Promise<Shop> {
+  private assertCanAccess(shop: Shop, actor: ShopActor): void {
+    if (actor.role === 'admin') return;
+    if (actor.role !== 'shop_owner' || shop.ownerId !== actor.userId) {
+      throw new ForbiddenException('Only the shop owner or an admin can access this shop');
+    }
+  }
+
+  async createShop(dto: CreateShopDto, ownerId: string, correlationId = 'unknown'): Promise<Shop> {
     const validCorrelationId = this.normalizeCorrelationId(correlationId);
 
     try {
       const savedShop = await this.dataSource.transaction(async (manager) => {
         const shop = manager.create(Shop, {
-          ownerId: dto.ownerId,
+          ownerId,
           name: dto.name,
           address: dto.address,
           lat: dto.lat.toFixed(6),
@@ -54,6 +71,7 @@ export class ShopService {
           producer: 'shop-service',
           payload: {
             shopId: persistedShop.id,
+            ownerId: persistedShop.ownerId,
             lat: Number(persistedShop.lat),
             lng: Number(persistedShop.lng),
             state: persistedShop.state,
@@ -88,6 +106,7 @@ export class ShopService {
   async updateShopLocation(
     shopId: string,
     dto: UpdateShopLocationDto,
+    actor: ShopActor,
     correlationId = 'unknown',
   ): Promise<Shop> {
     const validCorrelationId = this.normalizeCorrelationId(correlationId);
@@ -101,6 +120,7 @@ export class ShopService {
       if (!shop) {
         throw new NotFoundException(`Shop ${shopId} not found`);
       }
+      this.assertCanAccess(shop, actor);
 
       shop.lat = dto.lat.toFixed(6);
       shop.lng = dto.lng.toFixed(6);
@@ -143,10 +163,19 @@ export class ShopService {
     return updatedShop;
   }
 
-  async getShopById(shopId: string): Promise<Shop> {
+  async getShopById(shopId: string, actor: ShopActor): Promise<Shop> {
     const shop = await this.dataSource.getRepository(Shop).findOne({ where: { id: shopId } });
     if (!shop) {
       throw new NotFoundException(`Shop ${shopId} not found`);
+    }
+    this.assertCanAccess(shop, actor);
+    return shop;
+  }
+
+  async getShopByOwner(ownerId: string): Promise<Shop> {
+    const shop = await this.dataSource.getRepository(Shop).findOne({ where: { ownerId } });
+    if (!shop) {
+      throw new NotFoundException('No shop profile exists for this user yet');
     }
     return shop;
   }

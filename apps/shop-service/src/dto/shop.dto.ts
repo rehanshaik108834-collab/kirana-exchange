@@ -4,7 +4,6 @@ import {
   IsObject,
   IsOptional,
   IsString,
-  IsUUID,
   Max,
   MaxLength,
   Min,
@@ -13,9 +12,6 @@ import {
 import type { GstScheme } from '../entities/shop.entity';
 
 export class CreateShopDto {
-  @IsUUID()
-  ownerId: string;
-
   @IsString()
   @MinLength(2)
   @MaxLength(120)

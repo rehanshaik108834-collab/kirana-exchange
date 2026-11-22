@@ -22,7 +22,6 @@ export interface LoginInput {
 }
 
 export interface CreateShopInput {
-  ownerId: string;
   name: string;
   address: string;
   lat: number;

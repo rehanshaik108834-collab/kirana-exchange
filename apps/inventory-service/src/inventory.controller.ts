@@ -24,8 +24,14 @@ import { InventoryService } from './inventory.service';
 export class InventoryController {
   constructor(private readonly inventoryService: InventoryService) {}
 
+  /**
+   * Identity headers are injected by api-gateway from the verified JWT (never client-supplied).
+   * Deny by default: only an admin, or a user whose JWT shopId equals the target shop, may pass.
+   * A user without a linked shop (shopId missing) is denied.
+   */
   private assertShopOwnership(targetShopId: string, userRole?: string, userShopId?: string): void {
-    if (userRole && userRole !== 'admin' && userShopId && userShopId !== targetShopId) {
+    if (userRole === 'admin') return;
+    if (!userRole || !userShopId || userShopId !== targetShopId) {
       throw new ForbiddenException('Cannot access or mutate inventory of another shop');
     }
   }

@@ -6,7 +6,8 @@
   "private": true,
   "scripts": {
     "format": "prettier --write \"**/*.{ts,tsx,js,json,md,yml,yaml}\"",
-    "prepare": "husky"
+    "prepare": "husky",
+    "e2e:phase5": "node scripts/e2e/phase5.e2e.mjs"
   },
   "keywords": [],
   "author": "",

@@ -35,7 +35,6 @@ export function ShopSetupPage() {
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     createShopMutation.mutate({
-      ownerId,
       name: name.trim(),
       address: address.trim(),
       lat,

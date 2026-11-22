@@ -2,13 +2,21 @@ import { Inject, Module, OnApplicationShutdown } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ProblemDetailsFilter, RateLimiterService, REDIS_CLIENT } from '@kirana/common';
+import {
+  ProblemDetailsFilter,
+  RabbitConsumerWorker,
+  RateLimiterService,
+  REDIS_CLIENT,
+} from '@kirana/common';
 import Redis from 'ioredis';
+import { DataSource } from 'typeorm';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { RefreshToken } from './entities/refresh-token.entity';
 import { User } from './entities/user.entity';
 import { InitAuthSchema1700000000000 } from './migrations/1700000000000-InitAuthSchema';
+import { AddProcessedMessages1700000000001 } from './migrations/1700000000001-AddProcessedMessages';
+import { shopLinkingSubscription } from './shop-linking.consumer';
 
 @Module({
   imports: [
@@ -20,7 +28,7 @@ import { InitAuthSchema1700000000000 } from './migrations/1700000000000-InitAuth
       password: process.env.DB_PASSWORD || 'secretpassword',
       database: process.env.DB_NAME || 'auth_db',
       entities: [User, RefreshToken],
-      migrations: [InitAuthSchema1700000000000],
+      migrations: [InitAuthSchema1700000000000, AddProcessedMessages1700000000001],
       migrationsRun: true,
       synchronize: false,
     }),
@@ -42,6 +50,19 @@ import { InitAuthSchema1700000000000 } from './migrations/1700000000000-InitAuth
     },
     RateLimiterService,
     AuthService,
+    {
+      // shop.created.v1 -> users.shop_id. Set EVENT_CONSUMERS_ENABLED=false to disable.
+      provide: RabbitConsumerWorker,
+      inject: [DataSource],
+      useFactory: (dataSource: DataSource) =>
+        process.env.EVENT_CONSUMERS_ENABLED === 'false'
+          ? null
+          : new RabbitConsumerWorker(dataSource, {
+              amqpUrl: process.env.AMQP_URL || 'amqp://kirana_admin:secretpassword@127.0.0.1:5672',
+              serviceName: 'auth-service',
+              subscriptions: [shopLinkingSubscription],
+            }),
+    },
     {
       provide: APP_FILTER,
       useClass: ProblemDetailsFilter,

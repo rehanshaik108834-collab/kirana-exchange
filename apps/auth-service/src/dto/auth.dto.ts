@@ -1,4 +1,4 @@
-import { IsEmail, IsIn, IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import type { UserRole } from '../entities/user.entity';
 
 export class RegisterDto {
@@ -14,13 +14,14 @@ export class RegisterDto {
   @MinLength(8)
   password: string;
 
+  /**
+   * Self-registration may only create shop users. Admins are created with
+   * `pnpm --filter @kirana/auth-service create-admin` (DB access required), and a shopId is
+   * linked only when the user's shop is created (shop.created.v1 consumer).
+   */
   @IsOptional()
-  @IsIn(['shop_owner', 'shop_staff', 'admin'])
-  role?: UserRole;
-
-  @IsOptional()
-  @IsUUID()
-  shopId?: string;
+  @IsIn(['shop_owner', 'shop_staff'])
+  role?: Exclude<UserRole, 'admin'>;
 }
 
 export class LoginDto {

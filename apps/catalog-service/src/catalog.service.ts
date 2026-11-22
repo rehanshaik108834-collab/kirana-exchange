@@ -8,7 +8,7 @@ import {
 import { REDIS_CLIENT } from '@kirana/common';
 import Redis from 'ioredis';
 import pino from 'pino';
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { v4 as uuidv4, validate as isUuid } from 'uuid';
 import { CreateProductDto, UpdateProductDto } from './dto/catalog.dto';
 import { AuditLog } from './entities/audit-log.entity';
@@ -118,6 +118,32 @@ export class CatalogService {
 
     await this.safeRedisSetEx(cacheKey, PRODUCT_CACHE_TTL_SEC, JSON.stringify(current));
     return current;
+  }
+
+  /**
+   * Returns products for up to 100 ids in one query (inventory screens show names for many batches).
+   * Invalid UUIDs are rejected with 400; unknown ids are simply absent from the result.
+   */
+  async findByIds(idsRaw: string): Promise<Product[]> {
+    const ids = [
+      ...new Set(
+        idsRaw
+          .split(',')
+          .map((id) => id.trim())
+          .filter(Boolean),
+      ),
+    ];
+    if (ids.length === 0) {
+      return [];
+    }
+    if (ids.length > 100) {
+      throw new BadRequestException('At most 100 ids per request');
+    }
+    const invalid = ids.filter((id) => !isUuid(id));
+    if (invalid.length > 0) {
+      throw new BadRequestException(`Invalid product id(s): ${invalid.slice(0, 5).join(', ')}`);
+    }
+    return this.dataSource.getRepository(Product).find({ where: { id: In(ids) } });
   }
 
   /**
