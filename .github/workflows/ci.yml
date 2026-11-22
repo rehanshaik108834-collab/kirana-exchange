@@ -28,9 +28,17 @@ jobs:
       - name: Format Check (Prettier)
         run: pnpm exec prettier --check "**/*.{ts,tsx,js,json,md,yml,yaml}"
 
-      - name: Python Setup & Lint (Ruff)
+      - name: Python Setup
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install ruff
-      - run: ruff check services-py/
+
+      - name: Python Lint (Ruff)
+        run: |
+          pip install ruff
+          ruff check services-py/
+
+      - name: Python Test Suite (Pytest)
+        run: |
+          pip install -r services-py/analytics-simulator/requirements.txt
+          pytest services-py/analytics-simulator/tests -v

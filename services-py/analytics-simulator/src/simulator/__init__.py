@@ -31,8 +31,14 @@ from .generator import (
     run_simulation,
     stream_rng,
 )
+from .loader import (
+    BulkHttpLoader,
+    LoaderConfig,
+    LoadingSummary,
+)
 
 __all__ = [
+    "BulkHttpLoader",
     "CATEGORY_SEASONALITY_PHASE",
     "INDIAN_FESTIVALS_2026",
     "BehaviourParams",
@@ -41,6 +47,8 @@ __all__ = [
     "ExportFormat",
     "ExportManifest",
     "FileArtifact",
+    "LoaderConfig",
+    "LoadingSummary",
     "SimulatedDataset",
     "SimulatorConfig",
     "compute_config_hash",

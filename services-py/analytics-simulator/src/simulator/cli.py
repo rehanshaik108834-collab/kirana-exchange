@@ -1,3 +1,4 @@
+import asyncio
 from pathlib import Path
 from typing import Annotated
 
@@ -8,6 +9,7 @@ from .benchmark_sampler import sample_favorita_benchmark
 from .config import load_config
 from .exporter import ExportFormat, export_dataset, verify_manifest
 from .generator import run_simulation
+from .loader import BulkHttpLoader, LoaderConfig
 
 app = typer.Typer(name="simulator", help="Kirana Exchange Analytics Simulator CLI")
 console = Console()
@@ -125,6 +127,76 @@ def sample_benchmark(
         f"({manifest['row_count']:,} rows, {manifest['series_count']} series)"
     )
     console.print(f"  - SHA-256: {manifest['sample_sha256']}")
+
+
+@app.command("seed")
+def seed(
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Path to YAML preset config file"),
+    ],
+    gateway_url: Annotated[
+        str,
+        typer.Option("--gateway-url", help="API Gateway URL"),
+    ] = "http://localhost:3000",
+    mode: Annotated[
+        str,
+        typer.Option("--mode", "-m", help="Loader mode: gateway or direct"),
+    ] = "gateway",
+    token: Annotated[
+        str | None,
+        typer.Option("--token", help="Admin JWT Bearer token"),
+    ] = None,
+    concurrency: Annotated[
+        int,
+        typer.Option("--concurrency", help="Max concurrent HTTP requests"),
+    ] = 20,
+    skip_sales: Annotated[
+        bool,
+        typer.Option("--skip-sales", help="Skip daily sales seeding"),
+    ] = False,
+    sales_days: Annotated[
+        int | None,
+        typer.Option("--sales-days", help="Only seed first N days of sales"),
+    ] = None,
+) -> None:
+    """Seed synthetic data into Kirana Exchange services via HTTP APIs."""
+    if not config.exists():
+        console.print(f"[bold red]Error: Config file not found at {config}[/]")
+        raise typer.Exit(code=1)
+
+    console.print(f"[bold blue]Loading config from:[/] {config}")
+    cfg = load_config(config)
+
+    console.print(
+        f"[bold blue]Running 7-layer simulation for {cfg.shop_count} shops, {cfg.days} days...[/]"
+    )
+    dataset = run_simulation(cfg)
+
+    loader_config = LoaderConfig(
+        gateway_url=gateway_url,
+        mode="gateway" if mode.lower() == "gateway" else "direct",
+        auth_token=token,
+        concurrency=concurrency,
+        skip_sales=skip_sales,
+        sales_days=sales_days,
+    )
+    loader = BulkHttpLoader(loader_config)
+
+    console.print(f"[bold blue]Seeding data via {loader_config.mode.upper()} mode...[/]")
+    summary = asyncio.run(loader.run(dataset))
+
+    console.print("[bold green]Seeding finished![/]")
+    console.print(f"  - Products created: [cyan]{summary.products_created}[/]")
+    console.print(f"  - Products reused:  [cyan]{summary.products_reused}[/]")
+    console.print(f"  - Shops created:     [cyan]{summary.shops_created}[/]")
+    console.print(f"  - Batches imported:  [cyan]{summary.batches_imported}[/]")
+    console.print(f"  - Sales recorded:    [cyan]{summary.sales_recorded}[/]")
+    console.print(f"  - Failed requests:   [red]{summary.failed_requests}[/]")
+    console.print(f"  - Elapsed seconds:   {summary.elapsed_seconds:.2f}s")
+
+    if summary.errors:
+        console.print(f"[yellow]Warnings/Errors encountered: {len(summary.errors)}[/]")
 
 
 if __name__ == "__main__":
