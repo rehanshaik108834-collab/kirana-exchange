@@ -1,12 +1,27 @@
-import type { ReactNode } from 'react';
+import { lazy, type ReactNode, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { AuthPage } from './features/auth/AuthPage';
-import { AddBatchPage } from './features/inventory/AddBatchPage';
-import { InventoryPage } from './features/inventory/InventoryPage';
-import { AppShell } from './features/shell/AppShell';
-import { ShopSetupPage } from './features/shop-setup/ShopSetupPage';
+import { Loader2 } from 'lucide-react';
+import { UpdatePrompt } from './features/shell/UpdatePrompt';
 import { homePath } from './lib/session';
+
+// Route-level code splitting: each page downloads only when first visited
+// (Leaflet loads only on shop setup), keeping the first load small for slow mobile data.
+const AuthPage = lazy(() =>
+  import('./features/auth/AuthPage').then((m) => ({ default: m.AuthPage })),
+);
+const ShopSetupPage = lazy(() =>
+  import('./features/shop-setup/ShopSetupPage').then((m) => ({ default: m.ShopSetupPage })),
+);
+const InventoryPage = lazy(() =>
+  import('./features/inventory/InventoryPage').then((m) => ({ default: m.InventoryPage })),
+);
+const AddBatchPage = lazy(() =>
+  import('./features/inventory/AddBatchPage').then((m) => ({ default: m.AddBatchPage })),
+);
+const AppShell = lazy(() =>
+  import('./features/shell/AppShell').then((m) => ({ default: m.AppShell })),
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,6 +36,15 @@ const queryClient = new QueryClient({
   },
 });
 
+function PageLoading() {
+  return (
+    <div className="flex min-h-screen items-center justify-center text-slate-600" role="status">
+      <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+      <span className="sr-only">Loading…</span>
+    </div>
+  );
+}
+
 /** Routes are UX only: the gateway and services enforce auth and shop ownership on every call. */
 function Guard({ need, children }: { need: 'auth' | 'no-shop' | 'shop'; children: ReactNode }) {
   const home = homePath();
@@ -34,39 +58,42 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<AuthPage />} />
-          <Route
-            path="/shop-setup"
-            element={
-              <Guard need="no-shop">
-                <ShopSetupPage />
-              </Guard>
-            }
-          />
-          <Route
-            path="/inventory"
-            element={
-              <Guard need="shop">
-                <AppShell>
-                  <InventoryPage />
-                </AppShell>
-              </Guard>
-            }
-          />
-          <Route
-            path="/inventory/add"
-            element={
-              <Guard need="shop">
-                <AppShell>
-                  <AddBatchPage />
-                </AppShell>
-              </Guard>
-            }
-          />
-          <Route path="*" element={<Navigate to={homePath()} replace />} />
-        </Routes>
+        <Suspense fallback={<PageLoading />}>
+          <Routes>
+            <Route path="/login" element={<AuthPage />} />
+            <Route
+              path="/shop-setup"
+              element={
+                <Guard need="no-shop">
+                  <ShopSetupPage />
+                </Guard>
+              }
+            />
+            <Route
+              path="/inventory"
+              element={
+                <Guard need="shop">
+                  <AppShell>
+                    <InventoryPage />
+                  </AppShell>
+                </Guard>
+              }
+            />
+            <Route
+              path="/inventory/add"
+              element={
+                <Guard need="shop">
+                  <AppShell>
+                    <AddBatchPage />
+                  </AppShell>
+                </Guard>
+              }
+            />
+            <Route path="*" element={<Navigate to={homePath()} replace />} />
+          </Routes>
+        </Suspense>
       </BrowserRouter>
+      <UpdatePrompt />
     </QueryClientProvider>
   );
 }

@@ -50,8 +50,10 @@ Primary persona: Ramesh (48), 200 sq ft shop, WhatsApp user, prefers Telugu/Hind
     - Slice 3b: `OutboxRelayWorker` (libs/common) runs in `shop-service` and `inventory-service` (env `AMQP_URL`, `OUTBOX_RELAY_ENABLED=false` to disable); reconnects with backoff if RabbitMQ is down.
   - Slice 4a [DONE]: catalogue problem types; strict inventory/shop ownership; no self-registered admins (`create-admin` script); `shop.created.v1` carries `ownerId` and auth links `users.shop_id` via `RabbitConsumerWorker` (queue `auth.shop-linking`); `GET /v1/shops/me`; `GET /v1/catalog/products/by-ids`; DATE off-by-one fixed. E2E: `pnpm e2e:phase5` (27/27).
   - Slice 4b [DONE]: `apps/web-app` stock screens. Catalog search (name or EAN), add batch (Idempotency-Key reused across retries), stock list (available/reserved/days of cover, near-expiry badges), single-tap **Sell 1** (optimistic update with `expectedVersion`; rollback and refetch on conflict; network Retry reuses the same key). Route guards send users to /login, /shop-setup or /inventory; after shop creation the app polls refresh until the token carries `shopId`; sign-out revokes server-side.
-- **[UPCOMING] Phases 6–17:**
-  - Phase 6: offline PWA (IndexedDB mutation queue, ZXing barcode scanning, EN/TE/HI i18n).
+- **[IN PROGRESS] Phase 6: Offline-capable PWA** (plan: client-side outbox in IndexedDB, single-flight sync, conflict screen, ZXing, EN/TE/HI, Lighthouse ≥ 90):
+  - Slice 6.1 [DONE]: `vite-plugin-pwa` (generateSW, prompt-to-update, app-shell precache only, no API caching), generated icons + manifest, route-level code splitting (Leaflet only on shop setup). Unit 21/21; browser: SW active, offline reload and deep link served, 6/6.
+  - Next: 6.2 IndexedDB + offline reads, 6.3 offline queue + sync (US-13), 6.4 conflict screen (US-14), 6.5 ZXing, 6.6 i18n, 6.7 usability/privacy/Lighthouse.
+- **[UPCOMING] Phases 7–17:**
   - Phase 7: seeded YAML synthetic data simulator.
   - Phase 8: ML forecasting and risk service.
   - Phase 9: swap marketplace and saga orchestrator.
