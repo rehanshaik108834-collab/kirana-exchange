@@ -10,6 +10,7 @@ const logger = pino({ name: 'inventory-service' });
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: false });
   app.useBodyParser('json', { limit: '10mb' });
+  app.enableShutdownHooks();
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

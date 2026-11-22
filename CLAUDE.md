@@ -45,9 +45,9 @@ Primary persona: Ramesh (48), 200 sq ft shop, WhatsApp user, prefers Telugu/Hind
 - **[IN PROGRESS] Phase 5:**
   - Slice 1 [DONE]: `apps/catalog-service` (port `3004`). `pg_trgm` GIN trigram search plus Redis cache-aside with O(1) epoch invalidation; 50k-product seed script.
   - Slice 2 [DONE]: `apps/inventory-service` (port `3005`). Optimistic concurrency `version` plus the `CHECK` stock guard, two-tier idempotency, and a 10k-row bulk import.
-  - Slice 3 [LIBRARY BUILT + GO/NO-GO PASSED — NOT YET WIRED INTO SERVICES]:
+  - Slice 3 [DONE — GO/NO-GO PASSED]:
     - `OutboxRelay` (`FOR UPDATE SKIP LOCKED` + publisher confirms) and `IdempotentConsumerRunner` (per-tier retry queues `<q>.retry.<n>` at `5s → 30s → 300s`, then `.dlq`) in `libs/common/src/messaging/`. Gate report: [docs/phase-5-go-no-go.md](docs/phase-5-go-no-go.md); tests: `pnpm --filter @kirana/common test:int` (8/8).
-    - **No service runs a relay or a consumer yet, so outbox rows are never published.**
+    - Slice 3b: `OutboxRelayWorker` (libs/common) runs in `shop-service` and `inventory-service` (env `AMQP_URL`, `OUTBOX_RELAY_ENABLED=false` to disable); reconnects with backoff if RabbitMQ is down. No service consumes events yet.
   - Slice 4 [NEXT]: React catalog search, stock batch entry, and single-tap sales UI (`apps/web-app`).
 - **[UPCOMING] Phases 6–17:**
   - Phase 6: offline PWA (IndexedDB mutation queue, ZXing barcode scanning, EN/TE/HI i18n).
@@ -111,13 +111,13 @@ pnpm --filter @kirana/web-app dev                    # http://localhost:5173
 
 ## 6. Known Gaps & Tech Debt (verify before relying on any feature)
 
-1. **Outbox not wired:** no service runs `OutboxRelay` or a consumer, and none depends on `amqplib`.
+1. **No consumers yet:** relays run in shop and inventory (Slice 3b); no service consumes events until Slice 4a (auth shop-linking).
 2. **`shopId` never linked:** `users.shop_id` is only set at register; nothing updates it after `POST /v1/shops`, so JWTs carry `shopId: null`.
 3. **Ownership bypass:** `assertShopOwnership` ([inventory.controller.ts](apps/inventory-service/src/inventory.controller.ts)) passes when `x-shop-id` is absent.
 4. **Privilege escalation:** `RegisterDto` ([auth.dto.ts](apps/auth-service/src/dto/auth.dto.ts)) accepts `role: 'admin'` and any `shopId`.
 5. **Shop endpoints unprotected:** `ownerId` comes from the request body, and there are no ownership checks on `GET /:id` or `PATCH /:id/location`.
 6. **Problem `type` URIs:** `ProblemDetailsFilter` emits `/errors/<status>`, not the catalogue slugs (e.g. `/errors/version-conflict`), and `title` is the exception class name.
-7. **Possible DATE off-by-one:** `mapRawBatch` ([inventory.service.ts](apps/inventory-service/src/inventory.service.ts)) calls `toISOString()` on node-postgres `Date`s from raw queries (wrong day in IST). Unconfirmed.
+7. **CONFIRMED DATE off-by-one:** `mapRawBatch` ([inventory.service.ts](apps/inventory-service/src/inventory.service.ts)) calls `toISOString()` on node-postgres `Date`s from raw queries. Live test: expiry 2027-03-15 became 2027-03-14 after a sale, in both the response and the `StockUpdated` event. Fix is in Slice 4a.
 8. ~~Retry head-of-line blocking~~ **Fixed** (per-tier retry queues; gate test G7).
 9. **Drift:**
    - `01-schemas.sql` runs against the default DB, not the 10 service DBs; services rely on their own migrations.

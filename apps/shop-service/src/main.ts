@@ -8,6 +8,7 @@ const logger = pino({ name: 'shop-service' });
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { logger: false });
+  app.enableShutdownHooks();
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ProblemDetailsFilter } from '@kirana/common';
+import { OutboxRelayWorker, ProblemDetailsFilter } from '@kirana/common';
+import { DataSource } from 'typeorm';
 import { OutboxEvent } from './entities/outbox-event.entity';
 import { Shop } from './entities/shop.entity';
 import { InitShopSchema1700000000000 } from './migrations/1700000000000-InitShopSchema';
@@ -26,6 +27,18 @@ import { ShopService } from './shop.service';
   ],
   controllers: [ShopController],
   providers: [
+    {
+      // Slice 3b: drains outbox_events into kirana.events (ADR-003). Set OUTBOX_RELAY_ENABLED=false to disable.
+      provide: OutboxRelayWorker,
+      inject: [DataSource],
+      useFactory: (dataSource: DataSource) =>
+        process.env.OUTBOX_RELAY_ENABLED === 'false'
+          ? null
+          : new OutboxRelayWorker(dataSource, {
+              amqpUrl: process.env.AMQP_URL || 'amqp://kirana_admin:secretpassword@127.0.0.1:5672',
+              serviceName: 'shop-service',
+            }),
+    },
     ShopService,
     {
       provide: APP_FILTER,

@@ -12,6 +12,7 @@ import { DataSource, type EntityManager } from 'typeorm';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { IdempotentConsumerRunner } from '../src/messaging/idempotent-consumer';
 import { OutboxRelay } from '../src/messaging/outbox-relay.service';
+import { OutboxRelayWorker } from '../src/messaging/outbox-relay.worker';
 import {
   KIRANA_EVENTS_EXCHANGE,
   assertConsumerQueueTopology,
@@ -432,5 +433,60 @@ describe('Phase 5 Go/No-Go gate: outbox relay + idempotent consumer', () => {
     expect(dead && dead.properties.headers?.['x-death-reason']).toBe('MISSING_MESSAGE_ID');
     expect(dead && dead.properties.headers?.['x-retry-count']).toBeUndefined();
     expect(calls).toBe(0);
+  });
+});
+
+describe('Slice 3b: OutboxRelayWorker', () => {
+  it('W1: a running worker publishes existing and newly written outbox rows', async () => {
+    const fx = await setupFixture();
+    await fx.runner.registerConsumer(fx.queue, 'gate-consumer', recordEffect);
+    await insertOutbox(fx.routingKey, 30);
+
+    const worker = new OutboxRelayWorker(ds, {
+      amqpUrl: AMQP_URL,
+      serviceName: 'gate-test',
+      idleIntervalMs: 100,
+    });
+    worker.start();
+    try {
+      await waitFor(
+        async () =>
+          (await scalar(`SELECT COUNT(*) AS n FROM outbox_events WHERE published_at IS NULL`)) ===
+          0,
+        15_000,
+        'initial rows published',
+      );
+      await insertOutbox(fx.routingKey, 20); // written while the worker is running
+      await waitFor(
+        async () => (await scalar(`SELECT COUNT(*) AS n FROM gate_effects`)) === 50,
+        15_000,
+        '50 effects',
+      );
+      expect(worker.isConnected()).toBe(true);
+      expect(worker.getPublishedTotal()).toBe(50);
+      expect(fx.tapped.length).toBe(50);
+      expect(await scalar(`SELECT COUNT(*) AS n FROM gate_effects WHERE applied_count <> 1`)).toBe(
+        0,
+      );
+    } finally {
+      await worker.stop();
+    }
+  });
+
+  it('W2: broker unreachable -> no crash, events stay in the outbox, stop() resolves', async () => {
+    await insertOutbox('gate.unreachable.evt', 5);
+    const worker = new OutboxRelayWorker(ds, {
+      amqpUrl: 'amqp://kirana_admin:secretpassword@127.0.0.1:5999', // nothing listens here
+      serviceName: 'gate-test',
+      minBackoffMs: 100,
+      maxBackoffMs: 200,
+    });
+    worker.start();
+    await new Promise((r) => setTimeout(r, 800)); // several failed connection attempts
+    expect(worker.isConnected()).toBe(false);
+    expect(await scalar(`SELECT COUNT(*) AS n FROM outbox_events WHERE published_at IS NULL`)).toBe(
+      5,
+    );
+    await expect(worker.stop()).resolves.toBeUndefined();
   });
 });

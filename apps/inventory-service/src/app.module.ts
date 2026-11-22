@@ -1,7 +1,8 @@
 import { Inject, Module, OnApplicationShutdown } from '@nestjs/common';
 import { APP_FILTER } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ProblemDetailsFilter, REDIS_CLIENT } from '@kirana/common';
+import { OutboxRelayWorker, ProblemDetailsFilter, REDIS_CLIENT } from '@kirana/common';
+import { DataSource } from 'typeorm';
 import Redis from 'ioredis';
 import { InventoryBatch } from './entities/inventory-batch.entity';
 import { OutboxEvent } from './entities/outbox-event.entity';
@@ -28,6 +29,18 @@ import { InitInventorySchema1700000000000 } from './migrations/1700000000000-Ini
   ],
   controllers: [InventoryController],
   providers: [
+    {
+      // Slice 3b: drains outbox_events into kirana.events (ADR-003). Set OUTBOX_RELAY_ENABLED=false to disable.
+      provide: OutboxRelayWorker,
+      inject: [DataSource],
+      useFactory: (dataSource: DataSource) =>
+        process.env.OUTBOX_RELAY_ENABLED === 'false'
+          ? null
+          : new OutboxRelayWorker(dataSource, {
+              amqpUrl: process.env.AMQP_URL || 'amqp://kirana_admin:secretpassword@127.0.0.1:5672',
+              serviceName: 'inventory-service',
+            }),
+    },
     {
       provide: REDIS_CLIENT,
       useFactory: () =>
