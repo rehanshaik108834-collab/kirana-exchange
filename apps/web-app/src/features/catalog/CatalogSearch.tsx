@@ -22,7 +22,8 @@ export function CatalogSearch({ onSelect, autoFocus }: CatalogSearchProps) {
   const [active, setActive] = useState(0);
   const query = useDebounced(input, 250);
   const search = useCatalogSearch(query);
-  const results = query.trim().length >= 2 ? (search.data ?? []) : [];
+  const results = query.trim().length >= 2 ? (search.data?.products ?? []) : [];
+  const fromCache = Boolean(search.data?.fromCache);
   const listId = useId();
 
   useEffect(() => setActive(0), [query]);
@@ -77,6 +78,12 @@ export function CatalogSearch({ onSelect, autoFocus }: CatalogSearchProps) {
       </div>
 
       {search.error && <p className="text-sm text-red-700">{search.error.detail}</p>}
+
+      {fromCache && query.trim().length >= 2 && (
+        <p className="text-xs text-amber-900">
+          Offline: showing products saved on this phone. Connect to search the full catalogue.
+        </p>
+      )}
 
       {query.trim().length >= 2 && !search.isFetching && results.length === 0 && !search.error && (
         <p className="text-sm text-slate-600">

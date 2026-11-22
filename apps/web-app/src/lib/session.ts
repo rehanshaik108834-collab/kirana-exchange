@@ -1,4 +1,5 @@
 import { apiClient, refreshSession } from './api-client';
+import { clearLocalData } from './db';
 
 export interface SessionClaims {
   sub: string;
@@ -47,6 +48,8 @@ export async function signOut(): Promise<void> {
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('userId');
   localStorage.removeItem('userRole');
+  // Privacy (US-05): no shop data stays on the device after sign-out.
+  await clearLocalData().catch(() => undefined);
 }
 
 /**

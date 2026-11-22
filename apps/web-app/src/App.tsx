@@ -1,8 +1,9 @@
 import { lazy, type ReactNode, Suspense } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { UpdatePrompt } from './features/shell/UpdatePrompt';
+import { queryClient } from './lib/query-client';
 import { homePath } from './lib/session';
 
 // Route-level code splitting: each page downloads only when first visited
@@ -22,19 +23,6 @@ const AddBatchPage = lazy(() =>
 const AppShell = lazy(() =>
   import('./features/shell/AppShell').then((m) => ({ default: m.AppShell })),
 );
-
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: true,
-    },
-    mutations: {
-      // Never auto-retry writes: retries are explicit and reuse the same Idempotency-Key.
-      retry: false,
-    },
-  },
-});
 
 function PageLoading() {
   return (

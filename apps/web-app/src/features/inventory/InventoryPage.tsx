@@ -110,12 +110,26 @@ export function InventoryPage() {
         </div>
       )}
 
+      {batches.data && (batches.fetchStatus === 'paused' || batches.isRefetchError) && (
+        <p role="status" className="rounded-lg bg-amber-50 p-2 text-xs text-amber-900">
+          Offline — showing stock saved at{' '}
+          {new Date(batches.dataUpdatedAt).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+          .
+        </p>
+      )}
+
       {batches.isLoading && (
         <p className="flex items-center gap-2 text-sm text-slate-600">
           <Loader2 className="h-4 w-4 animate-spin" /> Loading stock…
         </p>
       )}
-      {batches.error && <p className="text-sm text-red-700">{batches.error.detail}</p>}
+      {/* With saved stock on screen, the amber offline note explains the state; no raw error. */}
+      {batches.error && !batches.data && (
+        <p className="text-sm text-red-700">{batches.error.detail}</p>
+      )}
 
       {!batches.isLoading && rows.length === 0 && !batches.error && (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-6 text-center text-sm text-slate-600">
