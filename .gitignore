@@ -11,6 +11,8 @@ __pycache__/
 !.env.example
 *.parquet
 data/raw/
+data/generated/
+data/benchmarks/
 coverage/
 .DS_Store
 *.tsbuildinfo

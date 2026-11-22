@@ -1,5 +1,6 @@
 """Kirana Exchange Analytics Simulator package."""
 
+from .benchmark_sampler import load_active_holiday_dates, sample_favorita_benchmark
 from .calendar_signals import (
     CATEGORY_SEASONALITY_PHASE,
     INDIAN_FESTIVALS_2026,
@@ -12,6 +13,15 @@ from .config import (
     DemandParams,
     SimulatorConfig,
     load_config,
+)
+from .exporter import (
+    ExportFormat,
+    ExportManifest,
+    FileArtifact,
+    compute_config_hash,
+    export_dataset,
+    sha256_file,
+    verify_manifest,
 )
 from .generator import (
     SimulatedDataset,
@@ -28,14 +38,23 @@ __all__ = [
     "BehaviourParams",
     "CityCenterConfig",
     "DemandParams",
+    "ExportFormat",
+    "ExportManifest",
+    "FileArtifact",
     "SimulatedDataset",
     "SimulatorConfig",
+    "compute_config_hash",
+    "export_dataset",
     "festival_multiplier",
     "generate_daily_series",
     "generate_shops",
     "generate_synthetic_skus",
+    "load_active_holiday_dates",
     "load_config",
     "run_simulation",
+    "sample_favorita_benchmark",
+    "sha256_file",
     "stream_rng",
+    "verify_manifest",
     "weather_multiplier",
 ]
