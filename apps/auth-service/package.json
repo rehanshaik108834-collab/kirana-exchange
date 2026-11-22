@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/main.js",
-    "create-admin": "node dist/scripts/create-admin.js"
+    "create-admin": "node dist/scripts/create-admin.js",
+    "test": "vitest run",
+    "test:cov": "vitest run --coverage"
   },
   "dependencies": {
     "@kirana/common": "workspace:*",
@@ -31,6 +33,8 @@
     "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
     "@types/uuid": "^10.0.0",
-    "typescript": "^7.0.2"
+    "@vitest/coverage-v8": "^5.1.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
   }
 }
