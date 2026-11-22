@@ -1,6 +1,11 @@
-import { useEffect, useId, useState } from 'react';
-import { Barcode, Loader2, Search } from 'lucide-react';
+import { lazy, Suspense, useEffect, useId, useState } from 'react';
+import { Barcode, Camera, Loader2, Search } from 'lucide-react';
 import { isEan, type Product, useCatalogSearch } from './hooks';
+
+// ZXing (~400 kB) loads only when the shopkeeper taps Scan.
+const BarcodeScanner = lazy(() =>
+  import('./BarcodeScanner').then((m) => ({ default: m.BarcodeScanner })),
+);
 
 interface CatalogSearchProps {
   onSelect: (product: Product) => void;
@@ -20,6 +25,7 @@ function useDebounced<T>(value: T, delayMs: number): T {
 export function CatalogSearch({ onSelect, autoFocus }: CatalogSearchProps) {
   const [input, setInput] = useState('');
   const [active, setActive] = useState(0);
+  const [scanning, setScanning] = useState(false);
   const query = useDebounced(input, 250);
   const search = useCatalogSearch(query);
   const results = query.trim().length >= 2 ? (search.data?.products ?? []) : [];
@@ -38,44 +44,67 @@ export function CatalogSearch({ onSelect, autoFocus }: CatalogSearchProps) {
       <label htmlFor={`${listId}-input`} className="block text-sm font-medium text-slate-700">
         Find product (name or barcode)
       </label>
-      <div className="relative">
-        {isEan(input) ? (
-          <Barcode className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-400" />
-        ) : (
-          <Search className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-400" />
-        )}
-        <input
-          id={`${listId}-input`}
-          type="search"
-          inputMode="search"
-          autoComplete="off"
-          autoFocus={autoFocus}
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (results.length === 0) return;
-            if (e.key === 'ArrowDown') {
-              e.preventDefault();
-              setActive((i) => Math.min(i + 1, results.length - 1));
-            } else if (e.key === 'ArrowUp') {
-              e.preventDefault();
-              setActive((i) => Math.max(i - 1, 0));
-            } else if (e.key === 'Enter') {
-              e.preventDefault();
-              choose(results[active]);
-            }
-          }}
-          role="combobox"
-          aria-expanded={results.length > 0}
-          aria-controls={listId}
-          aria-activedescendant={results.length > 0 ? `${listId}-${active}` : undefined}
-          placeholder="e.g. parle g, toor dal, 8901..."
-          className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-10 text-base focus:border-teal-600 focus:outline-none"
-        />
-        {search.isFetching && (
-          <Loader2 className="absolute right-3 top-3 h-5 w-5 animate-spin text-slate-400" />
-        )}
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          {isEan(input) ? (
+            <Barcode className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-400" />
+          ) : (
+            <Search className="pointer-events-none absolute left-3 top-3 h-5 w-5 text-slate-400" />
+          )}
+          <input
+            id={`${listId}-input`}
+            type="search"
+            inputMode="search"
+            autoComplete="off"
+            autoFocus={autoFocus}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (results.length === 0) return;
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setActive((i) => Math.min(i + 1, results.length - 1));
+              } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setActive((i) => Math.max(i - 1, 0));
+              } else if (e.key === 'Enter') {
+                e.preventDefault();
+                choose(results[active]);
+              }
+            }}
+            role="combobox"
+            aria-expanded={results.length > 0}
+            aria-controls={listId}
+            aria-activedescendant={results.length > 0 ? `${listId}-${active}` : undefined}
+            placeholder="e.g. parle g, toor dal, 8901..."
+            className="w-full rounded-lg border border-slate-300 py-2.5 pl-10 pr-10 text-base focus:border-teal-600 focus:outline-none"
+          />
+          {search.isFetching && (
+            <Loader2 className="absolute right-3 top-3 h-5 w-5 animate-spin text-slate-400" />
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => setScanning(true)}
+          aria-label="Scan barcode with camera"
+          className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
+        >
+          <Camera className="h-5 w-5" aria-hidden="true" />
+        </button>
       </div>
+
+      {scanning && (
+        <Suspense fallback={null}>
+          <BarcodeScanner
+            onDetected={(ean) => {
+              // A scanned EAN runs the exact barcode lookup (online, or the offline cache).
+              setScanning(false);
+              setInput(ean);
+            }}
+            onClose={() => setScanning(false)}
+          />
+        </Suspense>
+      )}
 
       {search.error && <p className="text-sm text-red-700">{search.error.detail}</p>}
 
