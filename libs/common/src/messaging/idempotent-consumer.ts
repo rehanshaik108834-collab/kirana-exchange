@@ -3,10 +3,12 @@ import pino from 'pino';
 import type { DataSource, EntityManager } from 'typeorm';
 import {
   KIRANA_DLX_EXCHANGE,
-  MAX_CONSUMER_RETRIES,
   RETRY_DELAYS_MS,
+  retryQueueName,
   type KiranaEventEnvelope,
 } from './rabbitmq.topology';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function extractReturningRows<T>(result: unknown): T[] {
   if (Array.isArray(result)) {
@@ -18,14 +20,26 @@ function extractReturningRows<T>(result: unknown): T[] {
   return [];
 }
 
+export interface IdempotentConsumerOptions {
+  /**
+   * Delay before each retry attempt; its length is the max retry count.
+   * Must match the `retryDelaysMs` passed to `assertConsumerQueueTopology` for the same queue.
+   */
+  retryDelaysMs?: readonly number[];
+}
+
 export class IdempotentConsumerRunner {
   private readonly logger = pino({ name: 'idempotent-consumer' });
+  private readonly retryDelaysMs: readonly number[];
   private dlqMessagesTotal = 0;
 
   constructor(
     private readonly dataSource: DataSource,
     private readonly channel: Channel,
-  ) {}
+    options: IdempotentConsumerOptions = {},
+  ) {
+    this.retryDelaysMs = options.retryDelaysMs ?? RETRY_DELAYS_MS;
+  }
 
   getDlqCount(): number {
     return this.dlqMessagesTotal;
@@ -44,11 +58,13 @@ export class IdempotentConsumerRunner {
    *      projection update and the `processed_messages` row commit atomically.
    * 3. On success: `channel.ack(msg)`.
    * 4. On failure: read `x-retry-count` header (default 0).
-   *    - If `retryCount < MAX_CONSUMER_RETRIES` (3): publish to `KIRANA_DLX_EXCHANGE` with
-   *      routingKey = `${queueName}.retry`, header `x-retry-count = retryCount + 1`, and
-   *      per-message `expiration = String(RETRY_DELAYS_MS[retryCount])` (5000, 30000, 300000), then `ack(msg)`.
-   *    - If `retryCount >= MAX_CONSUMER_RETRIES`: publish to `KIRANA_DLX_EXCHANGE` with
-   *      routingKey = `${queueName}.dlq`, increment `this.dlqMessagesTotal`, log error, and `ack(msg)`.
+   *    - If `retryCount < retryDelaysMs.length` (default 3): publish to `KIRANA_DLX_EXCHANGE` with
+   *      routingKey = `${queueName}.retry.${retryCount}` (a queue whose x-message-ttl is
+   *      retryDelaysMs[retryCount]: 5s, 30s, 300s) and header `x-retry-count = retryCount + 1`,
+   *      then `ack(msg)`. When the TTL expires RabbitMQ dead-letters it back to the main queue.
+   *    - Otherwise: publish to `KIRANA_DLX_EXCHANGE` with routingKey = `${queueName}.dlq`,
+   *      increment `this.dlqMessagesTotal`, log error, and `ack(msg)`.
+   * Messages that can never succeed (invalid JSON, missing/non-UUID id) go straight to the DLQ.
    */
   async registerConsumer<TPayload = Record<string, unknown>>(
     queueName: string,
@@ -74,7 +90,22 @@ export class IdempotentConsumerRunner {
         return;
       }
 
-      const messageId = envelope.id || msg.properties.messageId;
+      const messageId: unknown = envelope?.id || msg.properties.messageId;
+
+      // Without a UUID id the processed_messages insert can never succeed, so retrying is futile.
+      if (typeof messageId !== 'string' || !UUID_RE.test(messageId)) {
+        const reason = messageId ? 'INVALID_MESSAGE_ID' : 'MISSING_MESSAGE_ID';
+        this.logger.error({ consumerName, messageId, reason }, 'Unprocessable message id');
+        this.channel.publish(KIRANA_DLX_EXCHANGE, `${queueName}.dlq`, msg.content, {
+          persistent: true,
+          correlationId: msg.properties.correlationId,
+          contentType: msg.properties.contentType || 'application/json',
+          headers: { ...(msg.properties.headers ?? {}), 'x-death-reason': reason },
+        });
+        this.dlqMessagesTotal += 1;
+        this.channel.ack(msg);
+        return;
+      }
 
       try {
         await this.dataSource.transaction(async (manager) => {
@@ -106,9 +137,9 @@ export class IdempotentConsumerRunner {
         const headers = (msg.properties.headers ?? {}) as Record<string, unknown>;
         const retryCount = Number(headers['x-retry-count'] || 0);
 
-        if (retryCount < MAX_CONSUMER_RETRIES) {
+        if (retryCount < this.retryDelaysMs.length) {
           const nextRetry = retryCount + 1;
-          const delayMs = RETRY_DELAYS_MS[retryCount] ?? 5000;
+          const delayMs = this.retryDelaysMs[retryCount];
 
           this.logger.warn(
             {
@@ -121,12 +152,13 @@ export class IdempotentConsumerRunner {
             'Consumer handler failed; routing to retry queue with delay',
           );
 
-          this.channel.publish(KIRANA_DLX_EXCHANGE, `${queueName}.retry`, msg.content, {
+          // The tier queue's x-message-ttl applies the delay; no per-message expiration.
+          const retryKey = retryQueueName(queueName, retryCount);
+          this.channel.publish(KIRANA_DLX_EXCHANGE, retryKey, msg.content, {
             persistent: true,
             messageId: msg.properties.messageId,
             correlationId: msg.properties.correlationId,
             contentType: msg.properties.contentType || 'application/json',
-            expiration: String(delayMs),
             headers: {
               ...headers,
               'x-retry-count': nextRetry,

@@ -19,21 +19,32 @@ export interface KiranaEventEnvelope<TPayload = Record<string, unknown>> {
 
 export interface ConsumerQueueTopology {
   mainQueue: string;
-  retryQueue: string;
+  /** One retry queue per delay tier: `<queue>.retry.<attempt>` (attempt is 0-based). */
+  retryQueues: string[];
   dlqQueue: string;
+}
+
+/** Name of the retry queue (and its routing key on `kirana.dlx`) for a 0-based retry attempt. */
+export function retryQueueName(queueName: string, attempt: number): string {
+  return `${queueName}.retry.${attempt}`;
 }
 
 /**
  * Asserts the durable exchanges (`kirana.events`, `kirana.saga.commands`, `kirana.dlx`)
- * and binds a consumer queue alongside its `.retry` (TTL + DLX loop) and `.dlq` queues.
+ * and binds a consumer queue alongside its per-tier retry queues and `.dlq` queue.
+ *
+ * Why one retry queue per delay tier: RabbitMQ only expires messages at the head of a queue,
+ * so mixing per-message TTLs (5s, 30s, 300s) in a single queue lets a 300s message block a
+ * 5s message behind it. With a queue-level `x-message-ttl` every message in a queue shares the
+ * same delay, so FIFO order equals expiry order and no head-of-line blocking can occur.
  */
 export async function assertConsumerQueueTopology(
   channel: Channel,
   queueName: string,
   bindingKeys: string[],
   sourceExchange = KIRANA_EVENTS_EXCHANGE,
+  retryDelaysMs: readonly number[] = RETRY_DELAYS_MS,
 ): Promise<ConsumerQueueTopology> {
-  const retryQueue = `${queueName}.retry`;
   const dlqQueue = `${queueName}.dlq`;
 
   await channel.assertExchange(KIRANA_EVENTS_EXCHANGE, 'topic', { durable: true });
@@ -51,14 +62,20 @@ export async function assertConsumerQueueTopology(
   // Allow retry queue expiration via kirana.dlx to route back into the main queue
   await channel.bindQueue(queueName, KIRANA_DLX_EXCHANGE, queueName);
 
-  // 2. Retry waiting room: when per-message expiration (5s/30s/300s) expires,
-  // RabbitMQ dead-letters the message back to `kirana.dlx` with routingKey = `queueName`
-  await channel.assertQueue(retryQueue, {
-    durable: true,
-    deadLetterExchange: KIRANA_DLX_EXCHANGE,
-    deadLetterRoutingKey: queueName,
-  });
-  await channel.bindQueue(retryQueue, KIRANA_DLX_EXCHANGE, retryQueue);
+  // 2. Retry waiting rooms, one per delay tier: when the queue TTL expires, RabbitMQ
+  // dead-letters the message back to `kirana.dlx` with routingKey = `queueName` (main queue).
+  const retryQueues: string[] = [];
+  for (let attempt = 0; attempt < retryDelaysMs.length; attempt++) {
+    const retryQueue = retryQueueName(queueName, attempt);
+    await channel.assertQueue(retryQueue, {
+      durable: true,
+      messageTtl: retryDelaysMs[attempt],
+      deadLetterExchange: KIRANA_DLX_EXCHANGE,
+      deadLetterRoutingKey: queueName,
+    });
+    await channel.bindQueue(retryQueue, KIRANA_DLX_EXCHANGE, retryQueue);
+    retryQueues.push(retryQueue);
+  }
 
   // 3. Permanent Dead-Letter Queue (after 3 failed attempts)
   await channel.assertQueue(dlqQueue, {
@@ -66,5 +83,5 @@ export async function assertConsumerQueueTopology(
   });
   await channel.bindQueue(dlqQueue, KIRANA_DLX_EXCHANGE, dlqQueue);
 
-  return { mainQueue: queueName, retryQueue, dlqQueue };
+  return { mainQueue: queueName, retryQueues, dlqQueue };
 }
