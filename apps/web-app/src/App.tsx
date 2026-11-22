@@ -20,6 +20,9 @@ const InventoryPage = lazy(() =>
 const AddBatchPage = lazy(() =>
   import('./features/inventory/AddBatchPage').then((m) => ({ default: m.AddBatchPage })),
 );
+const SyncIssuesPage = lazy(() =>
+  import('./features/offline/SyncIssuesPage').then((m) => ({ default: m.SyncIssuesPage })),
+);
 const AppShell = lazy(() =>
   import('./features/shell/AppShell').then((m) => ({ default: m.AppShell })),
 );
@@ -73,6 +76,16 @@ export function App() {
                 <Guard need="shop">
                   <AppShell>
                     <AddBatchPage />
+                  </AppShell>
+                </Guard>
+              }
+            />
+            <Route
+              path="/sync-issues"
+              element={
+                <Guard need="shop">
+                  <AppShell>
+                    <SyncIssuesPage />
                   </AppShell>
                 </Guard>
               }

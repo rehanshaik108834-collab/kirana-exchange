@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { AlertTriangle, CheckCircle2, CloudOff, Loader2, UploadCloud } from 'lucide-react';
 import type { StoredEntry } from './queue';
 import type { SyncState } from './sync-engine';
@@ -48,7 +49,7 @@ export function SyncChip({ state, entries }: { state: SyncState; entries: Stored
           : summary.tone === 'attention'
             ? AlertTriangle
             : UploadCloud;
-  return (
+  const chip = (
     <span
       role="status"
       aria-live="polite"
@@ -60,5 +61,12 @@ export function SyncChip({ state, entries }: { state: SyncState; entries: Stored
       />
       {summary.label}
     </span>
+  );
+  return summary.tone === 'attention' ? (
+    <Link to="/sync-issues" aria-label={`${summary.label}: open the fix screen`}>
+      {chip}
+    </Link>
+  ) : (
+    chip
   );
 }

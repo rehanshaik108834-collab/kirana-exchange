@@ -189,11 +189,15 @@ function BatchCard({
           ) : (
             <CloudUpload className="h-3.5 w-3.5" aria-hidden="true" />
           )}
-          {batch.needsAttention
-            ? 'An entry for this batch needs attention'
-            : batch.pendingSync
-              ? 'New batch saved on this phone — waiting to sync'
-              : `${batch.unsentSales} sale${batch.unsentSales === 1 ? '' : 's'} not synced yet`}
+          {batch.needsAttention ? (
+            <Link to="/sync-issues" className="underline">
+              An entry for this batch needs attention — fix it
+            </Link>
+          ) : batch.pendingSync ? (
+            'New batch saved on this phone — waiting to sync'
+          ) : (
+            `${batch.unsentSales} sale${batch.unsentSales === 1 ? '' : 's'} not synced yet`
+          )}
         </p>
       )}
 
