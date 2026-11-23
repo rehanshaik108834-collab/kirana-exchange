@@ -19,6 +19,7 @@ export class GatewayProxyController {
   private readonly catalogServiceUrl = process.env.CATALOG_SERVICE_URL || 'http://127.0.0.1:3004';
   private readonly inventoryServiceUrl =
     process.env.INVENTORY_SERVICE_URL || 'http://127.0.0.1:3005';
+  private readonly forecastServiceUrl = process.env.FORECAST_SERVICE_URL || 'http://127.0.0.1:3006';
 
   private async forward(
     targetBaseUrl: string,
@@ -76,6 +77,11 @@ export class GatewayProxyController {
       res.setHeader('Retry-After', retryAfter);
     }
 
+    const cacheStatus = upstream.headers.get('x-cache');
+    if (cacheStatus) {
+      res.setHeader('X-Cache', cacheStatus);
+    }
+
     const text = await upstream.text();
     res.status(upstream.status).send(text);
   }
@@ -108,5 +114,18 @@ export class GatewayProxyController {
   @All(['inventory', 'inventory/*path'])
   async proxyInventory(@Req() req: AuthenticatedRequest, @Res() res: Response) {
     return this.forward(this.inventoryServiceUrl, req, res);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @All(['forecasts', 'forecasts/*path'])
+  async proxyForecasts(@Req() req: AuthenticatedRequest, @Res() res: Response) {
+    const method = req.method.toUpperCase();
+    const isRead = method === 'GET' || method === 'HEAD';
+
+    if (!isRead && req.user?.role !== 'admin') {
+      throw new ForbiddenException('Admin role required for forecast batch operations');
+    }
+
+    return this.forward(this.forecastServiceUrl, req, res);
   }
 }

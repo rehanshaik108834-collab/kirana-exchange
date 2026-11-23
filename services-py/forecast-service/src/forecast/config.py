@@ -33,11 +33,29 @@ class Settings(BaseSettings):
         default="redis://127.0.0.1:6379/0",
         description="Redis connection URL for forecast cache-aside",
     )
+    forecast_cache_ttl_seconds: int = Field(
+        default=21_600,
+        description="TTL in seconds for Redis forecast:shop:{shopId} cache entries (6h)",
+    )
 
-    # RabbitMQ Messaging
+    # RabbitMQ Messaging & Outbox
     rabbitmq_url: str = Field(
         default="amqp://kirana_admin:secretpassword@127.0.0.1:5672/",
         description="RabbitMQ connection URL",
+    )
+    outbox_batch_size: int = Field(
+        default=50,
+        description="Max outbox_events rows relayed per poll batch",
+    )
+
+    # ML Model Artifact Store
+    model_artifact_dir: str = Field(
+        default="artifacts/models",
+        description="Directory containing serialized production forecasting model artifacts",
+    )
+    model_max_age_days: int = Field(
+        default=14,
+        description="Maximum artifact age in days before falling back to MovingAverage",
     )
 
 

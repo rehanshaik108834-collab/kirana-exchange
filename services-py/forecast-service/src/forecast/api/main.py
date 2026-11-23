@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from ..config import settings
 from .middleware import CorrelationIdMiddleware, register_exception_handlers
-from .routes import router as health_router
+from .routes import router as forecast_router
 
 logger = structlog.get_logger("forecast.api.main")
 
@@ -23,6 +23,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         port=settings.app_port,
     )
     yield
+    redis_client = getattr(app.state, "redis_client", None)
+    if redis_client is not None and hasattr(redis_client, "aclose"):
+        try:
+            await redis_client.aclose()
+        except Exception as exc:
+            logger.warning("Failed to close Redis client cleanly", error=str(exc))
     logger.info("Shutting down forecast-service")
 
 
@@ -35,7 +41,6 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
@@ -44,14 +49,9 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Correlation ID middleware
     app.add_middleware(CorrelationIdMiddleware)
-
-    # RFC 9457 exception handlers
     register_exception_handlers(app)
-
-    # Routes
-    app.include_router(health_router)
+    app.include_router(forecast_router)
 
     return app
 
