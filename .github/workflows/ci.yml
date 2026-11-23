@@ -42,3 +42,5 @@ jobs:
         run: |
           pip install -r services-py/analytics-simulator/requirements.txt
           pytest services-py/analytics-simulator/tests -v
+          pip install -r services-py/forecast-service/requirements.txt
+          pytest services-py/forecast-service/tests -v
