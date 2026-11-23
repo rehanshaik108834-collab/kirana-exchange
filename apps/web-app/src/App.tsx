@@ -8,7 +8,7 @@ import { queryClient } from './lib/query-client';
 import { homePath } from './lib/session';
 
 // Route-level code splitting: each page downloads only when first visited
-// (Leaflet loads only on shop setup), keeping the first load small for slow mobile data.
+// (Leaflet loads only on shop setup; Recharts loads only on forecasts), keeping the first load small.
 const AuthPage = lazy(() =>
   import('./features/auth/AuthPage').then((m) => ({ default: m.AuthPage })),
 );
@@ -21,6 +21,9 @@ const InventoryPage = lazy(() =>
 const AddBatchPage = lazy(() =>
   import('./features/inventory/AddBatchPage').then((m) => ({ default: m.AddBatchPage })),
 );
+const ForecastPage = lazy(() =>
+  import('./features/forecasts/ForecastPage').then((m) => ({ default: m.ForecastPage })),
+);
 const SyncIssuesPage = lazy(() =>
   import('./features/offline/SyncIssuesPage').then((m) => ({ default: m.SyncIssuesPage })),
 );
@@ -32,7 +35,7 @@ function PageLoading() {
   const { t } = useTranslation();
   return (
     <div className="flex min-h-screen items-center justify-center text-slate-600" role="status">
-      <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+      <Loader2 aria-hidden="true" className="h-6 w-6 animate-spin" />
       <span className="sr-only">{t('common.loading')}</span>
     </div>
   );
@@ -41,9 +44,9 @@ function PageLoading() {
 /** Routes are UX only: the gateway and services enforce auth and shop ownership on every call. */
 function Guard({ need, children }: { need: 'auth' | 'no-shop' | 'shop'; children: ReactNode }) {
   const home = homePath();
-  if (home === '/login') return <Navigate to="/login" replace />;
-  if (need === 'no-shop' && home === '/inventory') return <Navigate to="/inventory" replace />;
-  if (need === 'shop' && home === '/shop-setup') return <Navigate to="/shop-setup" replace />;
+  if (home === '/login') return <Navigate replace to="/login" />;
+  if (need === 'no-shop' && home === '/inventory') return <Navigate replace to="/inventory" />;
+  if (need === 'shop' && home === '/shop-setup') return <Navigate replace to="/shop-setup" />;
   return <>{children}</>;
 }
 
@@ -83,6 +86,16 @@ export function App() {
               }
             />
             <Route
+              path="/forecasts"
+              element={
+                <Guard need="shop">
+                  <AppShell>
+                    <ForecastPage />
+                  </AppShell>
+                </Guard>
+              }
+            />
+            <Route
               path="/sync-issues"
               element={
                 <Guard need="shop">
@@ -92,7 +105,7 @@ export function App() {
                 </Guard>
               }
             />
-            <Route path="*" element={<Navigate to={homePath()} replace />} />
+            <Route path="*" element={<Navigate replace to={homePath()} />} />
           </Routes>
         </Suspense>
       </BrowserRouter>

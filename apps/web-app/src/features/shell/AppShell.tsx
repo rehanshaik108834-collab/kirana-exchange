@@ -2,7 +2,7 @@ import { type ReactNode, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { AlertTriangle, LogOut, PackagePlus, Store, Warehouse } from 'lucide-react';
+import { AlertTriangle, LogOut, PackagePlus, Store, TrendingUp, Warehouse } from 'lucide-react';
 import { LanguageSwitcher } from '../../i18n/LanguageSwitcher';
 import { apiClient, ApiProblemError } from '../../lib/api-client';
 import { signOut } from '../../lib/session';
@@ -54,17 +54,17 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-[1000] border-b border-slate-200 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-2 px-4 pt-2">
           <div className="flex min-w-0 flex-1 items-center gap-2 text-teal-700">
-            <Store className="h-5 w-5 shrink-0" aria-hidden="true" />
+            <Store aria-hidden="true" className="h-5 w-5 shrink-0" />
             <span className="truncate font-semibold">{shop.data?.name ?? t('common.appName')}</span>
           </div>
-          <SyncChip state={syncState} entries={queueEntries} />
+          <SyncChip entries={queueEntries} state={syncState} />
           <button
             type="button"
             onClick={handleSignOut}
             disabled={signingOut}
             className="inline-flex min-h-11 items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-300 px-3 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
           >
-            <LogOut className="h-4 w-4" aria-hidden="true" />
+            <LogOut aria-hidden="true" className="h-4 w-4" />
             {t('common.signOut')}
           </button>
         </div>
@@ -73,12 +73,16 @@ export function AppShell({ children }: { children: ReactNode }) {
           aria-label={t('nav.main')}
         >
           <NavLink to="/inventory" end className={navClass}>
-            <Warehouse className="h-4 w-4" aria-hidden="true" />
+            <Warehouse aria-hidden="true" className="h-4 w-4" />
             {t('nav.stock')}
           </NavLink>
           <NavLink to="/inventory/add" className={navClass}>
-            <PackagePlus className="h-4 w-4" aria-hidden="true" />
+            <PackagePlus aria-hidden="true" className="h-4 w-4" />
             {t('nav.addStock')}
+          </NavLink>
+          <NavLink to="/forecasts" className={navClass}>
+            <TrendingUp aria-hidden="true" className="h-4 w-4" />
+            {t('nav.forecasts')}
           </NavLink>
           <LanguageSwitcher className="ml-auto" />
         </nav>
@@ -91,7 +95,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           >
             <div className="rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950">
               <p id="signout-title" className="flex items-start gap-2 font-semibold">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                <AlertTriangle aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0" />
                 {t('signOutConfirm.title', { count: queueEntries.length })}
               </p>
               <p id="signout-body" className="mt-1">

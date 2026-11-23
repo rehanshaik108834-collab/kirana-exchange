@@ -56,7 +56,8 @@
   "nav": {
     "main": "Main",
     "stock": "Stock",
-    "addStock": "Add stock"
+    "addStock": "Add stock",
+    "forecasts": "Forecasts"
   },
   "inventory": {
     "title": "My stock",
@@ -82,6 +83,69 @@
     "soldOut": "Sold out",
     "expired": "Expired",
     "waitingToSync": "Waiting to sync"
+  },
+  "forecasts": {
+    "title": "Weekly forecast & risk",
+    "subtitle": "What to order for the next 7 days and which batches to clear early.",
+    "refresh": "Refresh",
+    "loading": "Loading forecasts…",
+    "notLinked": "Your shop is not linked yet. Please sign in again.",
+    "offlineSnapshot": "Offline — showing forecasts saved at {{time}}.",
+    "updatedAt": "Updated {{time}} · Model: {{model}}",
+    "fallbackBanner": "Using 14-day moving average fallback estimates while the ML forecasting model refreshes.",
+    "tabs": {
+      "all": "All",
+      "orderThis": "Order this ({{count}})",
+      "clearThis": "Clear this ({{count}})"
+    },
+    "kpi": {
+      "toOrderSkus": "Items to order",
+      "unitsToOrder": "Units to order",
+      "atRiskBatches": "Batches at risk",
+      "atRiskUnits": "Units at risk"
+    },
+    "orderThis": {
+      "title": "Order this week",
+      "empty": "No weekly demand forecasts are ready yet. Record daily sales and check back after the nightly run.",
+      "inStock": "In stock",
+      "next7Days": "7d demand",
+      "range": "Expected range: {{low}}–{{high}} units",
+      "suggestedOrder": "Order qty",
+      "wellStocked": "OK",
+      "addStockCta": "Record new stock batch"
+    },
+    "clearThis": {
+      "title": "Clear these batches",
+      "empty": "Great news — no batches are flagged for expiry or dead-stock risk right now.",
+      "available": "Can sell",
+      "daysOfCover": "Days of cover",
+      "unsoldRisk": "Likely unsold",
+      "expiresOn": "Expires on {{date}}"
+    },
+    "risk": {
+      "EXPIRY": "Expiry risk",
+      "DEAD_STOCK": "Slow / dead stock"
+    },
+    "action": {
+      "SWAP_TO_NEIGHBOUR": "Recommended: Swap with nearby shop",
+      "BUNDLE_DISCOUNT": "Recommended: Offer quick bundle discount",
+      "RETURN_TO_DISTRIBUTOR": "Recommended: Return to distributor"
+    },
+    "demandClass": {
+      "SMOOTH": "Steady seller",
+      "ERRATIC": "Spiky demand",
+      "INTERMITTENT": "Slow mover",
+      "LUMPY": "Rare bulk demand"
+    },
+    "accuracy": {
+      "title": "Predicted vs. actual sales",
+      "subtitle": "Daily shop total over the last 30 days.",
+      "wape": "Error (WAPE): {{pct}}%",
+      "actual": "Actual sales",
+      "predicted": "Predicted sales",
+      "empty": "Accuracy chart will appear once actual daily sales overlap with saved forecasts.",
+      "chartAria": "Line chart comparing daily actual sales against predicted sales"
+    }
   },
   "expiry": {
     "expired": "Expired",
