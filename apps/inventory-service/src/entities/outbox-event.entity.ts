@@ -5,13 +5,13 @@ export class OutboxEvent {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'aggregate_type', length: 64 })
+  @Column({ name: 'aggregate_type', type: 'varchar', length: 64 })
   aggregateType: string;
 
   @Column({ name: 'aggregate_id', type: 'uuid' })
   aggregateId: string;
 
-  @Column({ name: 'event_type', length: 64 })
+  @Column({ name: 'event_type', type: 'varchar', length: 64 })
   eventType: string;
 
   @Column({ type: 'int', default: 1 })
@@ -20,7 +20,7 @@ export class OutboxEvent {
   @Column({ name: 'correlation_id', type: 'uuid' })
   correlationId: string;
 
-  @Column({ length: 64 })
+  @Column({ type: 'varchar', length: 64 })
   producer: string;
 
   @Column({ type: 'jsonb' })

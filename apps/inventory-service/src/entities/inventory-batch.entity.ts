@@ -18,7 +18,7 @@ export class InventoryBatch {
   @Column({ name: 'product_id', type: 'uuid' })
   productId: string;
 
-  @Column({ name: 'batch_code', length: 64 })
+  @Column({ name: 'batch_code', type: 'varchar', length: 64 })
   batchCode: string;
 
   @Column({ type: 'int' })

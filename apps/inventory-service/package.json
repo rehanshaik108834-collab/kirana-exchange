@@ -1,11 +1,12 @@
 {
   "name": "@kirana/inventory-service",
   "version": "1.0.0",
-  "description": "Kirana Exchange Inventory Service (batches, atomic stock guard, sales, bulk CSV import)",
+  "description": "Kirana Exchange Inventory Service (batches, atomic stock guard, sales, bulk CSV import, saga handlers)",
   "private": true,
   "scripts": {
     "build": "tsc",
-    "start": "node dist/main.js"
+    "start": "node dist/main.js",
+    "test": "vitest run"
   },
   "dependencies": {
     "@kirana/common": "workspace:*",
@@ -27,6 +28,8 @@
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
     "@types/uuid": "^10.0.0",
-    "typescript": "^7.0.2"
+    "@vitest/coverage-v8": "^5.1.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
   }
 }

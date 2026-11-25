@@ -12,8 +12,10 @@ import {
 export interface EventSubscription<TPayload = Record<string, unknown>> {
   /** Durable queue owned by this consumer, e.g. `auth.shop-linking`. */
   queue: string;
-  /** Routing keys on `kirana.events`, e.g. `shop.created.v1`. */
+  /** Routing keys on `sourceExchange` (default `kirana.events`), e.g. `shop.created.v1`. */
   bindingKeys: string[];
+  /** Optional RabbitMQ exchange to bind against; defaults to `kirana.events`. */
+  sourceExchange?: string;
   /** Stored in `processed_messages.consumer_name`. */
   consumerName: string;
   /** Runs inside the same DB transaction as the processed_messages dedup insert. */
@@ -33,7 +35,7 @@ export interface RabbitConsumerWorkerOptions {
 }
 
 /**
- * Keeps a service's event subscriptions consuming through `IdempotentConsumerRunner`.
+ * Keeps a service's event/command subscriptions consuming through `IdempotentConsumerRunner`.
  *
  * - Never blocks startup. If RabbitMQ is down, messages wait durably in their queues and the
  *   worker reconnects with exponential backoff.
@@ -133,7 +135,7 @@ export class RabbitConsumerWorker {
           channel,
           sub.queue,
           sub.bindingKeys,
-          KIRANA_EVENTS_EXCHANGE,
+          sub.sourceExchange ?? KIRANA_EVENTS_EXCHANGE,
           this.opts.retryDelaysMs,
         );
         await runner.registerConsumer(sub.queue, sub.consumerName, sub.handler);

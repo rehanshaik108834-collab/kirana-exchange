@@ -28,6 +28,19 @@ jobs:
       - name: Format Check (Prettier)
         run: pnpm exec prettier --check "**/*.{ts,tsx,js,json,md,yml,yaml}"
 
+      - name: Build Shared Common Library
+        run: pnpm --filter @kirana/common build
+
+      - name: Node Services Build & Unit Tests
+        run: |
+          pnpm --filter @kirana/api-gateway build
+          pnpm --filter @kirana/api-gateway test
+          pnpm --filter @kirana/inventory-service build
+          pnpm --filter @kirana/inventory-service test
+          pnpm --filter @kirana/swap-service build
+          pnpm --filter @kirana/swap-service test
+          pnpm --filter @kirana/web-app test
+
       - name: Python Setup
         uses: actions/setup-python@v5
         with:
@@ -44,3 +57,5 @@ jobs:
           pytest services-py/analytics-simulator/tests -v
           pip install -r services-py/forecast-service/requirements.txt
           pytest services-py/forecast-service/tests -v
+          pip install -r services-py/swap-matcher/requirements.txt
+          pytest services-py/swap-matcher/tests -v
