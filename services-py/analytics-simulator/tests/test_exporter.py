@@ -1,12 +1,13 @@
 from pathlib import Path
 
 import pandas as pd
+from typer.testing import CliRunner
+
 from simulator.benchmark_sampler import sample_favorita_benchmark
 from simulator.cli import app
 from simulator.config import load_config
 from simulator.exporter import export_dataset, sha256_file, verify_manifest
 from simulator.generator import run_simulation
-from typer.testing import CliRunner
 
 CONFIGS_DIR = Path(__file__).resolve().parent.parent / "configs"
 runner = CliRunner()

@@ -234,7 +234,7 @@ class BulkHttpLoader:
                         self.summary.errors.append(
                             f"Create product {ean} failed ({res.status_code}): {res.text}"
                         )
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001
                     self.summary.failed_requests += 1
                     self.summary.errors.append(f"Product {ean} exception: {exc}")
 
@@ -288,7 +288,7 @@ class BulkHttpLoader:
                         self.summary.errors.append(
                             f"Create shop {name} failed ({res.status_code}): {res.text}"
                         )
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001
                     self.summary.failed_requests += 1
                     self.summary.errors.append(f"Shop {name} exception: {exc}")
 
@@ -388,7 +388,7 @@ class BulkHttpLoader:
                         self.summary.errors.append(
                             f"List batches for shop {shop_id} returned {list_res.status_code}"
                         )
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001
                     self.summary.failed_requests += 1
                     self.summary.errors.append(f"Batch import shop {shop_idx_val} error: {exc}")
 
@@ -481,7 +481,7 @@ class BulkHttpLoader:
                                 f"Sale on batch {batch_id} failed ({res.status_code}): {res.text}"
                             )
                             break
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001
                         self.summary.failed_requests += 1
                         self.summary.errors.append(f"Sale exception on batch {batch_id}: {exc}")
                         break

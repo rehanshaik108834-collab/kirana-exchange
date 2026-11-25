@@ -7,6 +7,7 @@ from typing import Any
 import httpx
 import pandas as pd
 import pytest
+
 from simulator.config import CityCenterConfig, SimulatorConfig
 from simulator.generator import SimulatedDataset, run_simulation
 from simulator.loader import BulkHttpLoader, LoaderConfig

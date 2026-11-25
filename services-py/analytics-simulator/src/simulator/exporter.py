@@ -142,7 +142,7 @@ def verify_manifest(output_dir: str | Path) -> tuple[bool, list[str]]:
     try:
         raw_manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         manifest = ExportManifest.model_validate(raw_manifest)
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001
         return False, [f"Failed to parse manifest.json: {exc}"]
 
     errors: list[str] = []
