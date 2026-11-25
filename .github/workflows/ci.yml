@@ -35,6 +35,8 @@ jobs:
         run: |
           pnpm --filter @kirana/api-gateway build
           pnpm --filter @kirana/api-gateway test
+          pnpm --filter @kirana/shop-service build
+          pnpm --filter @kirana/shop-service test
           pnpm --filter @kirana/inventory-service build
           pnpm --filter @kirana/inventory-service test
           pnpm --filter @kirana/swap-service build
@@ -43,6 +45,8 @@ jobs:
           pnpm --filter @kirana/saga-orchestrator test
           pnpm --filter @kirana/groupbuy-service build
           pnpm --filter @kirana/groupbuy-service test
+          pnpm --filter @kirana/notification-service build
+          pnpm --filter @kirana/notification-service test
           pnpm --filter @kirana/web-app test
 
       - name: Python Setup
