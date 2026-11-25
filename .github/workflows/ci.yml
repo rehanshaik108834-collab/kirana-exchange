@@ -39,6 +39,8 @@ jobs:
           pnpm --filter @kirana/inventory-service test
           pnpm --filter @kirana/swap-service build
           pnpm --filter @kirana/swap-service test
+          pnpm --filter @kirana/saga-orchestrator build
+          pnpm --filter @kirana/saga-orchestrator test
           pnpm --filter @kirana/web-app test
 
       - name: Python Setup
