@@ -25,6 +25,11 @@ export class GatewayProxyController {
   private readonly swapServiceUrl = process.env.SWAP_SERVICE_URL || 'http://127.0.0.1:3007';
   private readonly sagaOrchestratorUrl =
     process.env.SAGA_ORCHESTRATOR_URL || 'http://127.0.0.1:3008';
+  private readonly groupbuyServiceUrl = process.env.GROUPBUY_SERVICE_URL || 'http://127.0.0.1:3009';
+  private readonly notificationServiceUrl =
+    process.env.NOTIFICATION_SERVICE_URL || 'http://127.0.0.1:3010';
+  private readonly analyticsServiceUrl =
+    process.env.ANALYTICS_SERVICE_URL || 'http://127.0.0.1:3011';
 
   private async forward(
     targetBaseUrl: string,
@@ -194,5 +199,26 @@ export class GatewayProxyController {
   @All(['sagas', 'sagas/*path'])
   async proxySagas(@Req() req: AuthenticatedRequest, @Res() res: Response) {
     return this.forward(this.sagaOrchestratorUrl, req, res);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @All(['groupbuy', 'groupbuy/*path'])
+  async proxyGroupBuy(@Req() req: AuthenticatedRequest, @Res() res: Response) {
+    return this.forward(this.groupbuyServiceUrl, req, res);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @All(['notifications', 'notifications/*path'])
+  async proxyNotifications(@Req() req: AuthenticatedRequest, @Res() res: Response) {
+    return this.forward(this.notificationServiceUrl, req, res);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @All(['analytics', 'analytics/*path'])
+  async proxyAnalytics(@Req() req: AuthenticatedRequest, @Res() res: Response) {
+    if (req.user?.role !== 'admin') {
+      throw new ForbiddenException('Admin role required for network analytics and simulations');
+    }
+    return this.forward(this.analyticsServiceUrl, req, res);
   }
 }

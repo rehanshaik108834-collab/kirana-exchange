@@ -58,7 +58,18 @@
     "stock": "Stock",
     "addStock": "Add stock",
     "forecasts": "Forecasts",
-    "swaps": "Swaps"
+    "swaps": "Swaps",
+    "groupbuy": "Group buy",
+    "admin": "Admin"
+  },
+  "notifications": {
+    "bellAria": "Notifications ({{count}} unread)",
+    "title": "Alerts",
+    "unread": "{{count}} unread",
+    "markAllRead": "Mark all read",
+    "markRead": "Mark read",
+    "empty": "No alerts yet.",
+    "close": "Close alerts"
   },
   "inventory": {
     "title": "My stock",
@@ -233,6 +244,99 @@
       "FAILED": "Failed",
       "FAILED_NO_STOCK": "No stock left",
       "CANCELLED_COMPENSATED": "Cancelled"
+    }
+  },
+  "groupbuy": {
+    "title": "Distributor group buy",
+    "subtitle": "Pool wholesale demand with nearby shops to unlock lower volume price tiers.",
+    "refresh": "Refresh",
+    "notLinked": "Your shop is not linked yet. Please sign in again.",
+    "actionFailed": "Group-buy request could not be completed. Please try again.",
+    "tabs": {
+      "windows": "Buying windows ({{count}})",
+      "allocations": "My allocations ({{count}})"
+    },
+    "windows": {
+      "empty": "No distributor group-buy windows are scheduled right now.",
+      "minOrder": "Min pool: {{amount}}",
+      "deliveryFee": "Delivery: {{amount}}",
+      "cutoff": "Closes at {{time}}",
+      "openDetail": "View tiers & commit",
+      "hideDetail": "Hide details",
+      "progress": "{{current}} of {{target}} ({{pct}}%)",
+      "participants": "{{count}} shops joined",
+      "basePrice": "Base: {{price}}",
+      "currentTier": "Active tier: {{price}}",
+      "pooledQty": "Pooled: {{qty}} units",
+      "qtyLabel": "Your quantity",
+      "commit": "Save commitment",
+      "withdraw": "Withdraw",
+      "committedOk": "Commitment saved to the buying window.",
+      "withdrawnOk": "Commitment removed from the buying window.",
+      "closedNotice": "This buying window is closed for edits."
+    },
+    "allocations": {
+      "title": "Confirmed allocations",
+      "empty": "No closed group-buy allocations yet.",
+      "line": "{{qty}} units · Tier {{tier}} · Delivery share {{delivery}} · Landed {{landed}}/unit"
+    },
+    "status": {
+      "OPEN": "Open",
+      "EXTENDED": "Extended",
+      "ALLOCATING": "Allocating",
+      "COMPLETED": "Completed",
+      "CANCELLED": "Cancelled"
+    }
+  },
+  "admin": {
+    "title": "Network admin dashboard",
+    "subtitle": "Live CQRS network map, impact metrics, paired simulations, and dispute queue.",
+    "refresh": "Refresh",
+    "adminOnly": "Admin access is required to view this dashboard.",
+    "actionFailed": "Admin action could not be completed. Please try again.",
+    "kpi": {
+      "shops": "Active shops",
+      "activeListings": "Open surplus listings",
+      "stockoutsAvoided": "Stockouts avoided",
+      "cashReleased": "Cash released",
+      "deadStockReduced": "Dead stock cleared",
+      "groupbuySavings": "Group-buy savings"
+    },
+    "map": {
+      "title": "Live network map",
+      "empty": "No shops projected into analytics yet.",
+      "popupMeta": "{{state}} · Rep {{rep}} · {{listings}} active listings"
+    },
+    "chart": {
+      "title": "Daily network impact",
+      "subtitle": "Cash released via swaps and pooled group-buy savings (last 30 days).",
+      "empty": "Impact chart will appear as swaps and group-buy windows close.",
+      "cashSeries": "Swap cash released",
+      "groupbuySeries": "Group-buy savings",
+      "chartAria": "Bar chart of daily swap cash released and group-buy savings"
+    },
+    "sim": {
+      "title": "With vs. without exchange simulator",
+      "subtitle": "Run a seeded paired experiment to measure network impact.",
+      "seed": "Seed",
+      "shops": "Shops",
+      "acceptance": "Acceptance rate",
+      "radius": "Radius (km)",
+      "run": "Run paired experiment",
+      "running": "Running simulation…",
+      "deadStockDelta": "Dead stock: -{{pct}}%",
+      "stockoutDelta": "Stockouts: -{{pct}}%",
+      "cashDelta": "Cash released: {{amount}}",
+      "savingsDelta": "Group-buy savings: {{amount}}",
+      "runsCount": "{{count}} saved runs"
+    },
+    "disputes": {
+      "title": "Open swap disputes",
+      "empty": "No open disputes in the queue.",
+      "txLine": "Swap tx {{tx}}",
+      "resolve": "Resolve (-5 rep)",
+      "dismiss": "Dismiss",
+      "resolvedOk": "Dispute updated and recorded in audit log."
     }
   },
   "expiry": {

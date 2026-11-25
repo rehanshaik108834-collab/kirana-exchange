@@ -13,7 +13,10 @@ vi.mock('../offline/runtime', () => ({
   useSyncState: () => 'idle',
   useQueueEntries: () => mocks.entries,
 }));
-vi.mock('../../lib/session', () => ({ signOut: mocks.signOut }));
+vi.mock('../../lib/session', () => ({
+  signOut: mocks.signOut,
+  currentClaims: () => null,
+}));
 vi.mock('../../lib/api-client', () => ({
   apiClient: { get: () => new Promise(() => undefined) },
   ApiProblemError: class extends Error {},

@@ -5,16 +5,19 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   AlertTriangle,
   ArrowRightLeft,
+  Layers,
   LogOut,
   PackagePlus,
+  Shield,
   Store,
   TrendingUp,
   Warehouse,
 } from 'lucide-react';
 import { LanguageSwitcher } from '../../i18n/LanguageSwitcher';
 import { apiClient, ApiProblemError } from '../../lib/api-client';
-import { signOut } from '../../lib/session';
+import { currentClaims, signOut } from '../../lib/session';
 import type { ShopResponse } from '../auth/hooks';
+import { NotificationBell } from '../notifications/NotificationBell';
 import { SyncChip } from '../offline/SyncChip';
 import { useQueueEntries, useSyncState, useSyncTriggers } from '../offline/runtime';
 
@@ -43,6 +46,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const queueEntries = useQueueEntries();
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const isAdmin = currentClaims?.()?.role === 'admin';
 
   const doSignOut = async () => {
     setSigningOut(true);
@@ -66,6 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="truncate font-semibold">{shop.data?.name ?? t('common.appName')}</span>
           </div>
           <SyncChip entries={queueEntries} state={syncState} />
+          <NotificationBell />
           <button
             type="button"
             onClick={handleSignOut}
@@ -96,6 +101,16 @@ export function AppShell({ children }: { children: ReactNode }) {
             <ArrowRightLeft aria-hidden="true" className="h-4 w-4" />
             {t('nav.swaps')}
           </NavLink>
+          <NavLink className={navClass} to="/groupbuy">
+            <Layers aria-hidden="true" className="h-4 w-4" />
+            {t('nav.groupbuy')}
+          </NavLink>
+          {isAdmin && (
+            <NavLink className={navClass} to="/admin">
+              <Shield aria-hidden="true" className="h-4 w-4" />
+              {t('nav.admin')}
+            </NavLink>
+          )}
           <LanguageSwitcher className="ml-auto" />
         </nav>
         {confirmSignOut && (
