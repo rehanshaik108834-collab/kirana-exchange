@@ -57,7 +57,8 @@
     "main": "Main",
     "stock": "Stock",
     "addStock": "Add stock",
-    "forecasts": "Forecasts"
+    "forecasts": "Forecasts",
+    "swaps": "Swaps"
   },
   "inventory": {
     "title": "My stock",
@@ -145,6 +146,93 @@
       "predicted": "Predicted sales",
       "empty": "Accuracy chart will appear once actual daily sales overlap with saved forecasts.",
       "chartAria": "Line chart comparing daily actual sales against predicted sales"
+    }
+  },
+  "swaps": {
+    "title": "Peer swap marketplace",
+    "subtitle": "Swap slow-moving or near-expiry batches with nearby shops in your state.",
+    "refresh": "Refresh",
+    "cancel": "Cancel",
+    "notLinked": "Your shop is not linked yet. Please sign in again.",
+    "actionFailed": "That swap action could not be completed. Please try again.",
+    "tabs": {
+      "nearby": "Nearby ({{count}})",
+      "surplus": "My surplus ({{count}})",
+      "activity": "Offers & swaps ({{count}})"
+    },
+    "reputation": {
+      "HIGH": "Trusted peer",
+      "STANDARD": "Verified peer",
+      "CAUTION": "New peer"
+    },
+    "nearby": {
+      "title": "Nearby surplus stock",
+      "radius": "Radius: {{km}} km",
+      "gstNotice": "Showing anonymised same-state listings only. Seller identity unlocks only after offer acceptance.",
+      "empty": "No nearby surplus listings found within your selected radius right now.",
+      "distanceLine": "{{km}} km away · {{state}}",
+      "qty": "Available",
+      "unitPrice": "Unit price",
+      "expiry": "Expiry",
+      "makeOffer": "Make offer",
+      "offerQty": "Quantity",
+      "offerPrice": "Offer price (₹)",
+      "sendOffer": "Send offer",
+      "offerSent": "Offer sent to the seller shop."
+    },
+    "surplus": {
+      "title": "List surplus stock",
+      "riskDraftsTitle": "Suggested from risk alerts",
+      "draftDetail": "Likely unsold: {{qty}} units · {{days}} days of cover",
+      "listNow": "List suggested qty",
+      "fromStockTitle": "Available batches to list",
+      "noBatches": "No unlisted available stock batches right now.",
+      "batchMeta": "{{qty}} units · Cost {{cost}} · Exp {{expiry}}",
+      "listForSwap": "List for swap",
+      "myListingsTitle": "My surplus listings",
+      "emptyListings": "You have not listed any surplus batches yet.",
+      "listingLine": "{{qty}} units · {{price}} / unit · Exp {{expiry}}",
+      "listedOk": "Listed {{name}} for nearby peer swaps."
+    },
+    "activity": {
+      "offersTitle": "Swap offers",
+      "emptyOffers": "No active swap offers right now.",
+      "incomingOffer": "Incoming buyer offer",
+      "outgoingOffer": "Your offer to seller",
+      "offerLine": "{{qty}} units at {{price}} / unit",
+      "accept": "Accept offer",
+      "reject": "Reject",
+      "offerAccepted": "Offer accepted — reserving stock and starting swap handover.",
+      "offerRejected": "Offer rejected.",
+      "sagasTitle": "Live swap tracker",
+      "emptySagas": "No swap handovers in progress yet."
+    },
+    "saga": {
+      "seller": "Selling",
+      "buyer": "Buying",
+      "summaryLine": "{{role}} · {{qty}} units at {{price}} / unit",
+      "openTracker": "Open handover tracker",
+      "hideTracker": "Hide tracker",
+      "sellerPinLabel": "Share this 6-digit handover PIN at pickup",
+      "enterPinLabel": "Enter 6-digit handover PIN",
+      "confirmHandover": "Confirm handover",
+      "pinConfirmed": "Handover PIN confirmed.",
+      "waitingOtherParty": "Your confirmation is saved. Waiting for the other shop to confirm the PIN.",
+      "cancelSwap": "Cancel swap & release stock",
+      "cancelRequested": "Cancellation submitted — reserved stock will be released.",
+      "downloadInvoice": "Download GST swap invoice (PDF)"
+    },
+    "sagaState": {
+      "INITIATED": "Initiated",
+      "RESERVING_STOCK": "Reserving stock",
+      "AWAITING_HANDOVER": "Awaiting handover",
+      "HANDOVER_CONFIRMED": "Handover confirmed",
+      "COMMITTING_TRANSFER": "Transferring stock",
+      "COMPENSATING": "Releasing stock",
+      "COMPLETED": "Completed",
+      "FAILED": "Failed",
+      "FAILED_NO_STOCK": "No stock left",
+      "CANCELLED_COMPENSATED": "Cancelled"
     }
   },
   "expiry": {

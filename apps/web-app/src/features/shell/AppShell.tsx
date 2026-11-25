@@ -2,7 +2,15 @@ import { type ReactNode, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { AlertTriangle, LogOut, PackagePlus, Store, TrendingUp, Warehouse } from 'lucide-react';
+import {
+  AlertTriangle,
+  ArrowRightLeft,
+  LogOut,
+  PackagePlus,
+  Store,
+  TrendingUp,
+  Warehouse,
+} from 'lucide-react';
 import { LanguageSwitcher } from '../../i18n/LanguageSwitcher';
 import { apiClient, ApiProblemError } from '../../lib/api-client';
 import { signOut } from '../../lib/session';
@@ -72,17 +80,21 @@ export function AppShell({ children }: { children: ReactNode }) {
           className="mx-auto flex max-w-3xl flex-wrap items-center gap-2 px-4 py-2"
           aria-label={t('nav.main')}
         >
-          <NavLink to="/inventory" end className={navClass}>
+          <NavLink className={navClass} end to="/inventory">
             <Warehouse aria-hidden="true" className="h-4 w-4" />
             {t('nav.stock')}
           </NavLink>
-          <NavLink to="/inventory/add" className={navClass}>
+          <NavLink className={navClass} to="/inventory/add">
             <PackagePlus aria-hidden="true" className="h-4 w-4" />
             {t('nav.addStock')}
           </NavLink>
-          <NavLink to="/forecasts" className={navClass}>
+          <NavLink className={navClass} to="/forecasts">
             <TrendingUp aria-hidden="true" className="h-4 w-4" />
             {t('nav.forecasts')}
+          </NavLink>
+          <NavLink className={navClass} to="/swaps">
+            <ArrowRightLeft aria-hidden="true" className="h-4 w-4" />
+            {t('nav.swaps')}
           </NavLink>
           <LanguageSwitcher className="ml-auto" />
         </nav>

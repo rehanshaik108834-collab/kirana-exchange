@@ -24,6 +24,9 @@ const AddBatchPage = lazy(() =>
 const ForecastPage = lazy(() =>
   import('./features/forecasts/ForecastPage').then((m) => ({ default: m.ForecastPage })),
 );
+const SwapsPage = lazy(() =>
+  import('./features/swaps/SwapsPage').then((m) => ({ default: m.SwapsPage })),
+);
 const SyncIssuesPage = lazy(() =>
   import('./features/offline/SyncIssuesPage').then((m) => ({ default: m.SyncIssuesPage })),
 );
@@ -91,6 +94,16 @@ export function App() {
                 <Guard need="shop">
                   <AppShell>
                     <ForecastPage />
+                  </AppShell>
+                </Guard>
+              }
+            />
+            <Route
+              path="/swaps"
+              element={
+                <Guard need="shop">
+                  <AppShell>
+                    <SwapsPage />
                   </AppShell>
                 </Guard>
               }

@@ -8,6 +8,8 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { Readable } from 'node:stream';
+import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import { AccessTokenPayload, JwtAuthGuard } from './guards/jwt-auth.guard';
 
 type AuthenticatedRequest = Request & { user?: AccessTokenPayload };
@@ -20,6 +22,9 @@ export class GatewayProxyController {
   private readonly inventoryServiceUrl =
     process.env.INVENTORY_SERVICE_URL || 'http://127.0.0.1:3005';
   private readonly forecastServiceUrl = process.env.FORECAST_SERVICE_URL || 'http://127.0.0.1:3006';
+  private readonly swapServiceUrl = process.env.SWAP_SERVICE_URL || 'http://127.0.0.1:3007';
+  private readonly sagaOrchestratorUrl =
+    process.env.SAGA_ORCHESTRATOR_URL || 'http://127.0.0.1:3008';
 
   private async forward(
     targetBaseUrl: string,
@@ -42,6 +47,10 @@ export class GatewayProxyController {
       headers['idempotency-key'] = req.headers['idempotency-key'];
     }
 
+    if (typeof req.headers.accept === 'string') {
+      headers.accept = req.headers.accept;
+    }
+
     // Inject trusted identity headers strictly from verified JWT payload (never client-supplied)
     if (req.user) {
       headers['x-user-id'] = req.user.sub;
@@ -56,12 +65,14 @@ export class GatewayProxyController {
       headers['content-type'] = 'application/json';
     }
 
+    const abortController = new AbortController();
     let upstream: globalThis.Response;
     try {
       upstream = await fetch(targetUrl, {
         method: req.method,
         headers,
         body: hasBody ? JSON.stringify(req.body) : undefined,
+        signal: abortController.signal,
       });
     } catch {
       throw new ServiceUnavailableException('Downstream service is currently unavailable');
@@ -80,6 +91,47 @@ export class GatewayProxyController {
     const cacheStatus = upstream.headers.get('x-cache');
     if (cacheStatus) {
       res.setHeader('X-Cache', cacheStatus);
+    }
+
+    const contentDisposition = upstream.headers.get('content-disposition');
+    if (contentDisposition) {
+      res.setHeader('Content-Disposition', contentDisposition);
+    }
+
+    const invoiceNumber = upstream.headers.get('x-invoice-number');
+    if (invoiceNumber) {
+      res.setHeader('X-Invoice-Number', invoiceNumber);
+    }
+
+    // Stream Server-Sent Events without buffering
+    if (contentType?.includes('text/event-stream') && upstream.body) {
+      res.status(upstream.status);
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      res.flushHeaders?.();
+
+      const nodeStream = Readable.fromWeb(upstream.body as unknown as WebReadableStream);
+      const cleanup = () => {
+        abortController.abort();
+        nodeStream.destroy();
+      };
+      req.on?.('close', cleanup);
+      nodeStream.on('error', () => {
+        if (!res.writableEnded) res.end();
+      });
+      nodeStream.pipe(res);
+      return;
+    }
+
+    // Preserve binary responses (e.g., GST Swap Invoice PDFs) without UTF-8 corruption
+    if (
+      contentType?.includes('application/pdf') ||
+      contentType?.includes('application/octet-stream')
+    ) {
+      const arrayBuf = await upstream.arrayBuffer();
+      res.status(upstream.status).send(Buffer.from(arrayBuf));
+      return;
     }
 
     const text = await upstream.text();
@@ -127,5 +179,20 @@ export class GatewayProxyController {
     }
 
     return this.forward(this.forecastServiceUrl, req, res);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @All(['swaps', 'swaps/*path'])
+  async proxySwaps(@Req() req: AuthenticatedRequest, @Res() res: Response) {
+    if (req.originalUrl.includes('/internal/')) {
+      throw new ForbiddenException('Internal matching endpoints are not exposed via gateway');
+    }
+    return this.forward(this.swapServiceUrl, req, res);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @All(['sagas', 'sagas/*path'])
+  async proxySagas(@Req() req: AuthenticatedRequest, @Res() res: Response) {
+    return this.forward(this.sagaOrchestratorUrl, req, res);
   }
 }
