@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import nodemailer, { type Transporter } from 'nodemailer';
+import nodemailer from 'nodemailer';
 import pino from 'pino';
+
+type MailTransporter = ReturnType<typeof nodemailer.createTransport>;
 
 export interface EmailMessage {
   to: string;
@@ -19,9 +21,9 @@ export class MailerService {
   private readonly logger = pino({ name: 'notification-mailer' });
   private readonly fromAddress = process.env.SMTP_FROM || 'alerts@kirana.exchange';
   private readonly enabled = process.env.SMTP_ENABLED !== 'false';
-  private transporter: Transporter | null = null;
+  private transporter: MailTransporter | null = null;
 
-  private getTransporter(): Transporter {
+  private getTransporter(): MailTransporter {
     if (!this.transporter) {
       const host = process.env.SMTP_HOST || '127.0.0.1';
       const port = Number(process.env.SMTP_PORT || 1025);

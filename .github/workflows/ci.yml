@@ -69,3 +69,31 @@ jobs:
           pytest services-py/forecast-service/tests -v
           pip install -r services-py/swap-matcher/requirements.txt
           pytest services-py/swap-matcher/tests -v
+
+  security-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Secret Hygiene Scan (Tracked Files)
+        run: node scripts/security-check.mjs
+
+      - name: Gitleaks Secret History Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Trivy Filesystem Vulnerability & Misconfig Scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true

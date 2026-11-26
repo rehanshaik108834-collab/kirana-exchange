@@ -17,6 +17,15 @@ import { UpstreamClientService } from './resilience/upstream-client.service';
 
 type AuthenticatedRequest = Request & { user?: AccessTokenPayload };
 
+function normalizeRequestPath(rawUrl: string): string {
+  const pathOnly = rawUrl.split('?')[0] ?? rawUrl;
+  try {
+    return decodeURIComponent(pathOnly).toLowerCase();
+  } catch {
+    return pathOnly.toLowerCase();
+  }
+}
+
 @Controller('v1')
 export class GatewayProxyController {
   private readonly authServiceUrl = process.env.AUTH_SERVICE_URL || 'http://127.0.0.1:3002';
@@ -39,12 +48,24 @@ export class GatewayProxyController {
     private readonly upstreamClient: UpstreamClientService = new UpstreamClientService(),
   ) {}
 
+  private assertSafePath(req: AuthenticatedRequest, blockInternal = false): void {
+    const normalizedPath = normalizeRequestPath(req.originalUrl || req.url || '/');
+    if (normalizedPath.includes('..')) {
+      throw new ForbiddenException('Path traversal sequences are not permitted');
+    }
+    if (blockInternal && normalizedPath.includes('/internal/')) {
+      throw new ForbiddenException('Internal matching endpoints are not exposed via gateway');
+    }
+  }
+
   private async forward(
     serviceKey: string,
     targetBaseUrl: string,
     req: AuthenticatedRequest,
     res: Response,
   ): Promise<void> {
+    this.assertSafePath(req, false);
+
     const targetUrl = `${targetBaseUrl}${req.originalUrl}`;
     const headers: Record<string, string> = {};
 
@@ -226,9 +247,7 @@ export class GatewayProxyController {
   @UseGuards(JwtAuthGuard)
   @All(['swaps', 'swaps/*path'])
   async proxySwaps(@Req() req: AuthenticatedRequest, @Res() res: Response) {
-    if (req.originalUrl.includes('/internal/')) {
-      throw new ForbiddenException('Internal matching endpoints are not exposed via gateway');
-    }
+    this.assertSafePath(req, true);
     return this.forward('swap', this.swapServiceUrl, req, res);
   }
 
