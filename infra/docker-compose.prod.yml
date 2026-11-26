@@ -1,0 +1,405 @@
+name: kirana-exchange
+
+x-node-common: &node-common
+  restart: unless-stopped
+  environment: &node-env
+    NODE_ENV: production
+    DB_HOST: postgres
+    DB_PORT: '5432'
+    DB_USER: ${POSTGRES_USER:-kirana_admin}
+    DB_PASSWORD: ${POSTGRES_PASSWORD:-secretpassword}
+    REDIS_HOST: redis
+    REDIS_PORT: '6379'
+    AMQP_URL: amqp://${RABBITMQ_USER:-kirana_admin}:${RABBITMQ_PASSWORD:-secretpassword}@rabbitmq:5672
+    INTERNAL_AUTH_SECRET: ${INTERNAL_AUTH_SECRET:-dev-kirana-internal-hmac-secret-change-in-prod}
+    REQUIRE_INTERNAL_AUTH: ${REQUIRE_INTERNAL_AUTH:-true}
+  deploy:
+    resources:
+      limits:
+        memory: 384M
+
+services:
+  postgres:
+    image: postgres:16.8-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-kirana_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-secretpassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -h 127.0.0.1 -U ${POSTGRES_USER:-kirana_admin} -d postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command:
+      [
+        'redis-server',
+        '--appendonly',
+        'yes',
+        '--maxmemory',
+        '256mb',
+        '--maxmemory-policy',
+        'allkeys-lru',
+      ]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    restart: unless-stopped
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-kirana_admin}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-secretpassword}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8025:8025'
+
+  api-gateway:
+    <<: *node-common
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/api-gateway:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_NAME: api-gateway
+        SERVICE_PKG: '@kirana/api-gateway'
+        SERVICE_PORT: '3001'
+        HEALTH_PATH: /health
+    environment:
+      <<: *node-env
+      PORT: '3001'
+      JWT_SECRET: ${JWT_SECRET:-dev-kirana-jwt-secret-change-in-prod}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      AUTH_SERVICE_URL: http://auth-service:3002
+      SHOP_SERVICE_URL: http://shop-service:3003
+      CATALOG_SERVICE_URL: http://catalog-service:3004
+      INVENTORY_SERVICE_URL: http://inventory-service:3005
+      FORECAST_SERVICE_URL: http://forecast-service:3006
+      SWAP_SERVICE_URL: http://swap-service:3007
+      SAGA_ORCHESTRATOR_URL: http://saga-orchestrator:3008
+      GROUPBUY_SERVICE_URL: http://groupbuy-service:3009
+      NOTIFICATION_SERVICE_URL: http://notification-service:3010
+      ANALYTICS_SERVICE_URL: http://analytics-simulator:3011
+    depends_on:
+      redis:
+        condition: service_healthy
+      auth-service:
+        condition: service_healthy
+
+  auth-service:
+    <<: *node-common
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/auth-service:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_NAME: auth-service
+        SERVICE_PKG: '@kirana/auth-service'
+        SERVICE_PORT: '3002'
+        HEALTH_PATH: /v1/auth/health
+    environment:
+      <<: *node-env
+      PORT: '3002'
+      DB_NAME: auth_db
+      JWT_SECRET: ${JWT_SECRET:-dev-kirana-jwt-secret-change-in-prod}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  shop-service:
+    <<: *node-common
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/shop-service:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_NAME: shop-service
+        SERVICE_PKG: '@kirana/shop-service'
+        SERVICE_PORT: '3003'
+        HEALTH_PATH: /v1/shops/health
+    environment:
+      <<: *node-env
+      PORT: '3003'
+      DB_NAME: shop_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  catalog-service:
+    <<: *node-common
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/catalog-service:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_NAME: catalog-service
+        SERVICE_PKG: '@kirana/catalog-service'
+        SERVICE_PORT: '3004'
+        HEALTH_PATH: /health
+    environment:
+      <<: *node-env
+      PORT: '3004'
+      DB_NAME: catalog_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  inventory-service:
+    <<: *node-common
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/inventory-service:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_NAME: inventory-service
+        SERVICE_PKG: '@kirana/inventory-service'
+        SERVICE_PORT: '3005'
+        HEALTH_PATH: /health
+    environment:
+      <<: *node-env
+      PORT: '3005'
+      DB_NAME: inventory_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  forecast-service:
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/forecast-service:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: services-py/forecast-service/Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_PORT: '3006'
+      APP_ENV: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-kirana_admin}:${POSTGRES_PASSWORD:-secretpassword}@postgres:5432/forecast_db
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-kirana_admin}:${RABBITMQ_PASSWORD:-secretpassword}@rabbitmq:5672/
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  swap-service:
+    <<: *node-common
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/swap-service:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_NAME: swap-service
+        SERVICE_PKG: '@kirana/swap-service'
+        SERVICE_PORT: '3007'
+        HEALTH_PATH: /health
+    environment:
+      <<: *node-env
+      PORT: '3007'
+      DB_NAME: swap_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  swap-matcher:
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/swap-matcher:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: services-py/swap-matcher/Dockerfile
+    restart: unless-stopped
+    environment:
+      SWAP_SERVICE_URL: http://swap-service:3007
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-kirana_admin}:${RABBITMQ_PASSWORD:-secretpassword}@rabbitmq:5672/
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+    depends_on:
+      swap-service:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  saga-orchestrator:
+    <<: *node-common
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/saga-orchestrator:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_NAME: saga-orchestrator
+        SERVICE_PKG: '@kirana/saga-orchestrator'
+        SERVICE_PORT: '3008'
+        HEALTH_PATH: /health
+    environment:
+      <<: *node-env
+      PORT: '3008'
+      DB_NAME: saga_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  groupbuy-service:
+    <<: *node-common
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/groupbuy-service:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_NAME: groupbuy-service
+        SERVICE_PKG: '@kirana/groupbuy-service'
+        SERVICE_PORT: '3009'
+        HEALTH_PATH: /health
+    environment:
+      <<: *node-env
+      PORT: '3009'
+      DB_NAME: groupbuy_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  notification-service:
+    <<: *node-common
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/notification-service:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: infra/docker/node-service.Dockerfile
+      args:
+        SERVICE_NAME: notification-service
+        SERVICE_PKG: '@kirana/notification-service'
+        SERVICE_PORT: '3010'
+        HEALTH_PATH: /health
+    environment:
+      <<: *node-env
+      PORT: '3010'
+      DB_NAME: notify_db
+      SMTP_HOST: ${SMTP_HOST:-mailhog}
+      SMTP_PORT: ${SMTP_PORT:-1025}
+      SMTP_FROM: ${SMTP_FROM:-alerts@kirana.exchange}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  analytics-simulator:
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/analytics-simulator:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: services-py/analytics-simulator/Dockerfile
+    restart: unless-stopped
+    environment:
+      APP_PORT: '3011'
+      APP_ENV: production
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-kirana_admin}:${POSTGRES_PASSWORD:-secretpassword}@postgres:5432/analytics_db
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-kirana_admin}:${RABBITMQ_PASSWORD:-secretpassword}@rabbitmq:5672/
+      RABBIT_CONSUMER_ENABLED: 'true'
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  web-app:
+    image: ${IMAGE_REGISTRY:-ghcr.io/rehanshaik108834-collab/kirana-exchange}/web-app:${IMAGE_TAG:-latest}
+    build:
+      context: ..
+      dockerfile: infra/docker/web-app.Dockerfile
+      args:
+        VITE_API_BASE_URL: /v1
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v3.2.1
+    restart: unless-stopped
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - '127.0.0.1:9090:9090'
+
+  grafana:
+    image: grafana/grafana-oss:11.5.2
+    restart: unless-stopped
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-change_me_grafana_pass}
+      GF_USERS_ALLOW_SIGN_UP: 'false'
+    volumes:
+      - grafana_data:/var/lib/grafana
+    ports:
+      - '127.0.0.1:3000:3000'
+    depends_on:
+      - prometheus
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
+  prometheus_data:
+  grafana_data:

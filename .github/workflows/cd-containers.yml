@@ -1,0 +1,206 @@
+name: Container Build, Trivy Scan & GHCR Publish
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  validate-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Static Container & Nginx Hardening Checks
+        run: node scripts/validate-containers.mjs
+
+      - name: Validate Production Compose Schema
+        run: docker compose -f infra/docker-compose.prod.yml --env-file infra/.env.prod.example config --quiet
+
+  build-scan-push-node:
+    needs: validate-compose
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: api-gateway
+            pkg: '@kirana/api-gateway'
+            port: '3001'
+            health: /health
+          - service: auth-service
+            pkg: '@kirana/auth-service'
+            port: '3002'
+            health: /v1/auth/health
+          - service: shop-service
+            pkg: '@kirana/shop-service'
+            port: '3003'
+            health: /v1/shops/health
+          - service: catalog-service
+            pkg: '@kirana/catalog-service'
+            port: '3004'
+            health: /health
+          - service: inventory-service
+            pkg: '@kirana/inventory-service'
+            port: '3005'
+            health: /health
+          - service: swap-service
+            pkg: '@kirana/swap-service'
+            port: '3007'
+            health: /health
+          - service: saga-orchestrator
+            pkg: '@kirana/saga-orchestrator'
+            port: '3008'
+            health: /health
+          - service: groupbuy-service
+            pkg: '@kirana/groupbuy-service'
+            port: '3009'
+            health: /health
+          - service: notification-service
+            pkg: '@kirana/notification-service'
+            port: '3010'
+            health: /health
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute Lowercase Image Name & Short SHA
+        id: meta
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "image=${{ env.REGISTRY }}/${REPO_LOWER}/${{ matrix.service }}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Image Locally for Trivy Scan
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/node-service.Dockerfile
+          build-args: |
+            SERVICE_NAME=${{ matrix.service }}
+            SERVICE_PKG=${{ matrix.pkg }}
+            SERVICE_PORT=${{ matrix.port }}
+            HEALTH_PATH=${{ matrix.health }}
+          load: true
+          tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Scan Image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Push SHA-Tagged & Latest Image to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infra/docker/node-service.Dockerfile
+          build-args: |
+            SERVICE_NAME=${{ matrix.service }}
+            SERVICE_PKG=${{ matrix.pkg }}
+            SERVICE_PORT=${{ matrix.port }}
+            HEALTH_PATH=${{ matrix.health }}
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
+            ${{ steps.meta.outputs.image }}:latest
+          cache-from: type=gha,scope=${{ matrix.service }}
+
+  build-scan-push-python-and-web:
+    needs: validate-compose
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - service: forecast-service
+            dockerfile: services-py/forecast-service/Dockerfile
+          - service: analytics-simulator
+            dockerfile: services-py/analytics-simulator/Dockerfile
+          - service: swap-matcher
+            dockerfile: services-py/swap-matcher/Dockerfile
+          - service: web-app
+            dockerfile: infra/docker/web-app.Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute Lowercase Image Name & Short SHA
+        id: meta
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "image=${{ env.REGISTRY }}/${REPO_LOWER}/${{ matrix.service }}" >> "$GITHUB_OUTPUT"
+          echo "sha_tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Build Image Locally for Trivy Scan
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          load: true
+          tags: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+      - name: Scan Image with Trivy
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Push SHA-Tagged & Latest Image to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.sha_tag }}
+            ${{ steps.meta.outputs.image }}:latest
+          cache-from: type=gha,scope=${{ matrix.service }}
