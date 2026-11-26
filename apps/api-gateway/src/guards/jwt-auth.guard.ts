@@ -3,12 +3,14 @@ import {
   ExecutionContext,
   Inject,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { REDIS_CLIENT } from '@kirana/common';
 import { Request } from 'express';
 import Redis from 'ioredis';
+import pino from 'pino';
 
 export interface AccessTokenPayload {
   sub: string;
@@ -19,6 +21,8 @@ export interface AccessTokenPayload {
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
+  private readonly logger = pino({ name: 'gateway-jwt-guard' });
+
   constructor(
     private readonly jwtService: JwtService,
     @Inject(REDIS_CLIENT) private readonly redis: Redis,
@@ -42,7 +46,25 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     if (payload.jti) {
-      const revoked = await this.redis.exists(`auth:denylist:${payload.jti}`);
+      let revoked = 0;
+      try {
+        revoked = await this.redis.exists(`auth:denylist:${payload.jti}`);
+      } catch (err) {
+        if (process.env.DENYLIST_FAIL_OPEN === 'true') {
+          this.logger.warn(
+            { jti: payload.jti, err: (err as Error).message },
+            'Redis denylist unavailable; allowing valid unexpired JWT (DENYLIST_FAIL_OPEN=true)',
+          );
+        } else {
+          this.logger.error(
+            { jti: payload.jti, err: (err as Error).message },
+            'Redis denylist unavailable; failing closed with 503',
+          );
+          throw new ServiceUnavailableException(
+            'Authentication revocation check temporarily unavailable',
+          );
+        }
+      }
       if (revoked === 1) {
         throw new UnauthorizedException('Access token has been revoked');
       }

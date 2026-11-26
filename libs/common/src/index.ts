@@ -1,4 +1,5 @@
 export * from './filters/problem-details.filter';
+export * from './messaging/dlq-replay';
 export * from './messaging/idempotent-consumer';
 export * from './messaging/outbox-relay.service';
 export * from './messaging/outbox-relay.worker';

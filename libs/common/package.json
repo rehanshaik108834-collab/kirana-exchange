@@ -8,7 +8,8 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run --config vitest.unit.config.mts",
-    "test:int": "vitest run --config vitest.config.mts"
+    "test:int": "vitest run --config vitest.config.mts",
+    "dlq": "node dist/messaging/dlq-cli.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.5.1",
