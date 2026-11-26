@@ -28,8 +28,10 @@ jobs:
       - name: Format Check (Prettier)
         run: pnpm exec prettier --check "**/*.{ts,tsx,js,json,md,yml,yaml}"
 
-      - name: Build Shared Common Library
-        run: pnpm --filter @kirana/common build
+      - name: Build & Test Shared Common Library
+        run: |
+          pnpm --filter @kirana/common build
+          pnpm --filter @kirana/common test
 
       - name: Node Services Build & Unit Tests
         run: |

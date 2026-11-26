@@ -5,3 +5,4 @@ export * from './messaging/outbox-relay.worker';
 export * from './messaging/rabbit-consumer.worker';
 export * from './messaging/rabbitmq.topology';
 export * from './redis/rate-limiter.service';
+export * from './security/internal-auth';

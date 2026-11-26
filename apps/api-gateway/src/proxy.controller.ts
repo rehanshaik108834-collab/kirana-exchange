@@ -2,15 +2,18 @@ import {
   All,
   Controller,
   ForbiddenException,
+  Optional,
   Req,
   Res,
   ServiceUnavailableException,
   UseGuards,
 } from '@nestjs/common';
+import { signInternalHeaders } from '@kirana/common';
 import { Request, Response } from 'express';
 import { Readable } from 'node:stream';
 import type { ReadableStream as WebReadableStream } from 'node:stream/web';
 import { AccessTokenPayload, JwtAuthGuard } from './guards/jwt-auth.guard';
+import { UpstreamClientService } from './resilience/upstream-client.service';
 
 type AuthenticatedRequest = Request & { user?: AccessTokenPayload };
 
@@ -31,7 +34,13 @@ export class GatewayProxyController {
   private readonly analyticsServiceUrl =
     process.env.ANALYTICS_SERVICE_URL || 'http://127.0.0.1:3011';
 
+  constructor(
+    @Optional()
+    private readonly upstreamClient: UpstreamClientService = new UpstreamClientService(),
+  ) {}
+
   private async forward(
+    serviceKey: string,
     targetBaseUrl: string,
     req: AuthenticatedRequest,
     res: Response,
@@ -65,22 +74,50 @@ export class GatewayProxyController {
       }
     }
 
+    // Attach HMAC-SHA256 signed internal authentication envelope
+    const internalSigned = signInternalHeaders({
+      service: 'api-gateway',
+      method: req.method,
+      path: req.originalUrl,
+      userId: req.user?.sub ?? null,
+      userRole: req.user?.role ?? null,
+      shopId: req.user?.shopId ?? null,
+    });
+    Object.assign(headers, internalSigned);
+
     const hasBody = !['GET', 'HEAD'].includes(req.method.toUpperCase()) && req.body !== undefined;
     if (hasBody) {
       headers['content-type'] = 'application/json';
     }
 
     const abortController = new AbortController();
+    const isSseRequest =
+      typeof req.headers.accept === 'string' && req.headers.accept.includes('text/event-stream');
+
     let upstream: globalThis.Response;
-    try {
-      upstream = await fetch(targetUrl, {
+    if (isSseRequest) {
+      // Fail fast if this downstream service's breaker is open, but don't apply a short RPC timeout to SSE streams
+      if (this.upstreamClient.isOpen(serviceKey)) {
+        throw new ServiceUnavailableException(
+          `Service '${serviceKey}' is temporarily unavailable (circuit open)`,
+        );
+      }
+      try {
+        upstream = await fetch(targetUrl, {
+          method: req.method,
+          headers,
+          signal: abortController.signal,
+        });
+      } catch {
+        throw new ServiceUnavailableException('Downstream service is currently unavailable');
+      }
+    } else {
+      upstream = await this.upstreamClient.execute(serviceKey, targetUrl, {
         method: req.method,
         headers,
         body: hasBody ? JSON.stringify(req.body) : undefined,
         signal: abortController.signal,
       });
-    } catch {
-      throw new ServiceUnavailableException('Downstream service is currently unavailable');
     }
 
     const contentType = upstream.headers.get('content-type');
@@ -145,13 +182,13 @@ export class GatewayProxyController {
 
   @All(['auth', 'auth/*path'])
   async proxyAuth(@Req() req: AuthenticatedRequest, @Res() res: Response) {
-    return this.forward(this.authServiceUrl, req, res);
+    return this.forward('auth', this.authServiceUrl, req, res);
   }
 
   @UseGuards(JwtAuthGuard)
   @All(['shops', 'shops/*path'])
   async proxyShops(@Req() req: AuthenticatedRequest, @Res() res: Response) {
-    return this.forward(this.shopServiceUrl, req, res);
+    return this.forward('shop', this.shopServiceUrl, req, res);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -164,13 +201,13 @@ export class GatewayProxyController {
       throw new ForbiddenException('Admin role required for catalog mutations');
     }
 
-    return this.forward(this.catalogServiceUrl, req, res);
+    return this.forward('catalog', this.catalogServiceUrl, req, res);
   }
 
   @UseGuards(JwtAuthGuard)
   @All(['inventory', 'inventory/*path'])
   async proxyInventory(@Req() req: AuthenticatedRequest, @Res() res: Response) {
-    return this.forward(this.inventoryServiceUrl, req, res);
+    return this.forward('inventory', this.inventoryServiceUrl, req, res);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -183,7 +220,7 @@ export class GatewayProxyController {
       throw new ForbiddenException('Admin role required for forecast batch operations');
     }
 
-    return this.forward(this.forecastServiceUrl, req, res);
+    return this.forward('forecast', this.forecastServiceUrl, req, res);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -192,25 +229,25 @@ export class GatewayProxyController {
     if (req.originalUrl.includes('/internal/')) {
       throw new ForbiddenException('Internal matching endpoints are not exposed via gateway');
     }
-    return this.forward(this.swapServiceUrl, req, res);
+    return this.forward('swap', this.swapServiceUrl, req, res);
   }
 
   @UseGuards(JwtAuthGuard)
   @All(['sagas', 'sagas/*path'])
   async proxySagas(@Req() req: AuthenticatedRequest, @Res() res: Response) {
-    return this.forward(this.sagaOrchestratorUrl, req, res);
+    return this.forward('saga', this.sagaOrchestratorUrl, req, res);
   }
 
   @UseGuards(JwtAuthGuard)
   @All(['groupbuy', 'groupbuy/*path'])
   async proxyGroupBuy(@Req() req: AuthenticatedRequest, @Res() res: Response) {
-    return this.forward(this.groupbuyServiceUrl, req, res);
+    return this.forward('groupbuy', this.groupbuyServiceUrl, req, res);
   }
 
   @UseGuards(JwtAuthGuard)
   @All(['notifications', 'notifications/*path'])
   async proxyNotifications(@Req() req: AuthenticatedRequest, @Res() res: Response) {
-    return this.forward(this.notificationServiceUrl, req, res);
+    return this.forward('notification', this.notificationServiceUrl, req, res);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -219,6 +256,6 @@ export class GatewayProxyController {
     if (req.user?.role !== 'admin') {
       throw new ForbiddenException('Admin role required for network analytics and simulations');
     }
-    return this.forward(this.analyticsServiceUrl, req, res);
+    return this.forward('analytics', this.analyticsServiceUrl, req, res);
   }
 }

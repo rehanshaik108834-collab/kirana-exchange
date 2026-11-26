@@ -281,6 +281,9 @@ importers:
       ioredis:
         specifier: ^6.0.0
         version: 6.0.0
+      opossum:
+        specifier: ^8.1.4
+        version: 8.5.0
       pino:
         specifier: ^9.6.0
         version: 9.14.0
@@ -300,6 +303,9 @@ importers:
       '@types/node':
         specifier: ^26.6.6
         version: 26.6.6
+      '@types/opossum':
+        specifier: ^8.1.9
+        version: 8.1.9
       '@types/uuid':
         specifier: ^10.0.0
         version: 10.0.0
@@ -2601,6 +2607,9 @@ packages:
   '@types/nodemailer@6.4.24':
     resolution: {integrity: sha512-Ww4u0rT9wQNXh4JiQaIwx3QWdcOFXzOjQA2zc+jtFYNmQiT4mIUqcDin51bDFdkzKubFnQCZNK7FIHlPKQ/q9w==}
 
+  '@types/opossum@8.1.9':
+    resolution: {integrity: sha512-Jm/tYxuJFefiwRYs+/EOsUP3ktk0c8siMgAHPLnA4PXF4wKghzcjqf88dY+Xii5jId5Txw4JV0FMKTpjbd7KJA==}
+
   '@types/pdfkit@0.13.9':
     resolution: {integrity: sha512-RDG8Yb1zT7I01FfpwK7nMSA433XWpblMqSCtA5vJlSyavWZb303HUYPCel6JTiDDFqwGLvtAnYbH8N/e0Cb89g==}
 
@@ -4274,6 +4283,10 @@ packages:
 
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
+
+  opossum@8.5.0:
+    resolution: {integrity: sha512-LZNvs+p9/ZbG4oN6unnjh4hTxkB0dyHKI2p7azVt8w+//GKDpfHss6WR7KebbpzGEssYwtSd8Mvwxqcmxg10NA==}
+    engines: {node: ^24 || ^22 || ^21 || ^20 || ^18 || ^16}
 
   own-keys@1.0.2:
     resolution: {integrity: sha512-19YVAg7T+WTrxggPukVq7DjTv6+PJ867TmhCvBsYwmbFCsZd344rq2Ld1p0wo8f8Qrrhgp82c6FJRqdXWtSEhg==}
@@ -7163,6 +7176,10 @@ snapshots:
     dependencies:
       '@types/node': 26.6.6
 
+  '@types/opossum@8.1.9':
+    dependencies:
+      '@types/node': 26.6.6
+
   '@types/pdfkit@0.13.9':
     dependencies:
       '@types/node': 26.6.6
@@ -8824,6 +8841,8 @@ snapshots:
   once@1.4.0:
     dependencies:
       wrappy: 1.0.2
+
+  opossum@8.5.0: {}
 
   own-keys@1.0.2:
     dependencies:

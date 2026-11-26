@@ -13,7 +13,9 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { GlobalIpRateLimitGuard } from './guards/rate-limit.guard';
 import { HealthController } from './health.controller';
 import { CorrelationIdMiddleware } from './middleware/correlation-id.middleware';
+import { SecurityHeadersMiddleware } from './middleware/security-headers.middleware';
 import { GatewayProxyController } from './proxy.controller';
+import { UpstreamClientService } from './resilience/upstream-client.service';
 
 @Module({
   imports: [
@@ -30,10 +32,13 @@ import { GatewayProxyController } from './proxy.controller';
         new Redis({
           host: process.env.REDIS_HOST || '127.0.0.1',
           port: Number(process.env.REDIS_PORT || 6379),
+          lazyConnect: true,
+          maxRetriesPerRequest: 1,
         }),
     },
     RateLimiterService,
     JwtAuthGuard,
+    UpstreamClientService,
     {
       provide: APP_FILTER,
       useClass: ProblemDetailsFilter,
@@ -48,10 +53,10 @@ export class AppModule implements NestModule, OnApplicationShutdown {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(CorrelationIdMiddleware).forRoutes('*');
+    consumer.apply(CorrelationIdMiddleware, SecurityHeadersMiddleware).forRoutes('*');
   }
 
   async onApplicationShutdown() {
-    await this.redis.quit();
+    await this.redis.quit().catch(() => undefined);
   }
 }
